@@ -839,7 +839,7 @@
         // gate to the center of his face and stopped him dead mid-walk.
         if (window.__paintingMode) {
           rig.position.x = Math.max(SPAWN.x - 1500, Math.min(SPAWN.x + 1500, rig.position.x));
-          rig.position.z = Math.max(SPAWN.z - 1380, Math.min(SPAWN.z + 60, rig.position.z));
+          rig.position.z = Math.max(SPAWN.z - 1274, Math.min(SPAWN.z + 60, rig.position.z));
           rig.position.y = 0;
           return;
         }
@@ -1037,19 +1037,18 @@
           new THREE.TextureLoader().load(url, function (tex) {
             tex.colorSpace = THREE.SRGBColorSpace;
             tex.anisotropy = 4;
-            // THE PICTURE, FLAT, AT THE CASTLE WALL'S OWN SCALE (Russell's
-            // ruling, 2026-11-19 21:56): stretched the entire length of the
-            // wall, base to the tippy top of the spires. Stood 1,400 m out
-            // so the composition reads as the painting reads: the painted
-            // horizon sits at his eye line, the gate towers from just above
-            // it, the spires exit the top, the wall runs past vision on both
-            // sides - and keeps going: the outer strips of the image stretch
-            // 3,000 m each way, the wall continuing. Nothing else in front.
-            var H = 3333, planeY = H / 2 - 731, planeZ = SPAWN.z - 1400;
-            var center = new THREE.Mesh(new THREE.PlaneGeometry(4000, H),
-              new THREE.MeshBasicMaterial({ map: tex }));
+            // THE ARRIVAL (Russell's ruling, 2026-11-19 22:05): plate A-v1,
+            // THE ROAD STRAIGHT IN - the arrival is one of the final gates.
+            // Flat, at wall scale, stood at the painting's own vantage:
+            // 3,333 m tall, its meadow line at his eye line, the crystal
+            // spires exiting the top, the white wall and the rose meadows
+            // running past vision on both sides and stretched on 3,000 m
+            // each way - stretching in every direction, as it's supposed to.
+            var H = 3333, planeY = H / 2 - 900 + 1.7, planeZ = SPAWN.z - 1294;
             tex.wrapS = THREE.ClampToEdgeWrapping;
             tex.repeat.x = 0.8; tex.offset.x = 0.1;
+            var center = new THREE.Mesh(new THREE.PlaneGeometry(4741, H),
+              new THREE.MeshBasicMaterial({ map: tex }));
             center.position.set(SPAWN.x, planeY, planeZ);
             scene.add(center);
             function strip(side, off) {
@@ -1058,49 +1057,49 @@
               t.repeat.x = 0.1; t.offset.x = off;
               var m = new THREE.Mesh(new THREE.PlaneGeometry(3000, H),
                 new THREE.MeshBasicMaterial({ map: t }));
-              m.position.set(SPAWN.x + side * 3500, planeY, planeZ);
+              m.position.set(SPAWN.x + side * 3870, planeY, planeZ);
               scene.add(m);
             }
             strip(-1, 0);
             strip(1, 0.9);
-            // Foreground apron: from his boots to the picture's base,
-            // palette-matched to the painting's own foreground.
+            // The meadow apron: A-v1's own foreground - rose-grass, sage,
+            // fallen petals - from his boots to the picture's base.
             var cv = document.createElement('canvas');
             cv.width = 256; cv.height = 256;
             var g = cv.getContext('2d');
-            g.fillStyle = '#46392c'; g.fillRect(0, 0, 256, 256);
-            var tones = ['#55452f', '#3a2f24', '#5d6242', '#4c5a3a', '#6b5636'];
+            g.fillStyle = '#8f7f5c'; g.fillRect(0, 0, 256, 256);
+            var tones = ['#a98a72', '#79804f', '#b78f96', '#6d7a48', '#c4a29b', '#5f6e3e'];
             for (var i = 0; i < 5200; i++) {
               g.fillStyle = tones[(Math.random() * tones.length) | 0];
               g.globalAlpha = 0.16 + Math.random() * 0.3;
               g.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 5, 2 + Math.random() * 5);
             }
             g.globalAlpha = 1;
-            for (var p = 0; p < 260; p++) {
-              g.fillStyle = 'rgba(216,130,165,0.5)';
+            for (var p = 0; p < 300; p++) {
+              g.fillStyle = 'rgba(216,140,166,0.55)';
               g.fillRect(Math.random() * 256, Math.random() * 256, 2.4, 1.6);
             }
             var gt = new THREE.CanvasTexture(cv);
             gt.colorSpace = THREE.SRGBColorSpace;
             gt.wrapS = THREE.RepeatWrapping; gt.wrapT = THREE.RepeatWrapping;
-            gt.repeat.set(12, 6);
-            var apronGeo = new THREE.PlaneGeometry(3400, 1600, 64, 24);
+            gt.repeat.set(12, 5);
+            var apronGeo = new THREE.PlaneGeometry(3400, 1450, 64, 24);
             apronGeo.rotateX(-Math.PI / 2);
             var dp = apronGeo.attributes.position;
             for (var vi = 0; vi < dp.count; vi++) {
-              var vx = dp.getX(vi) + SPAWN.x, vz = dp.getZ(vi) + SPAWN.z - 700;
+              var vx = dp.getX(vi) + SPAWN.x, vz = dp.getZ(vi) + SPAWN.z - 640;
               dp.setY(vi, groundHeight(vx, vz) + 0.3);
             }
             apronGeo.computeVertexNormals();
             var apron = new THREE.Mesh(apronGeo,
               new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
-            apron.position.set(SPAWN.x, 0, SPAWN.z - 700);
+            apron.position.set(SPAWN.x, 0, SPAWN.z - 640);
             scene.add(apron);
           });
         }
         for (var k = 0; k < N; k++) {
           (function (idx) {
-            fetch('bv2-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
+            fetch('av1-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
               parts[idx] = t; loaded++; tryBuild();
             }).catch(function () { /* painting unavailable */ });
           })(k);
@@ -1136,7 +1135,7 @@
         if (distTimer > 0.1) {
           distTimer = 0;
           var d = Math.max(0, rig.position.z - GATE_FACE_Z);
-          if (window.__paintingMode) distEl.textContent = 'THE GATES OPENING';
+          if (window.__paintingMode) distEl.textContent = 'THE ARRIVAL';
           else if (d >= 160.934) distEl.textContent = (d / 1609.344).toFixed(1) + ' MI';
           else distEl.textContent = Math.round(d * 3.28084) + ' FT';
         }
