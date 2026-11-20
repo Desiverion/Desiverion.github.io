@@ -153,7 +153,7 @@
       <p class="how"><strong>Quest:</strong> tap <strong>Enter VR</strong> below. Left thumbstick walks (gaze-relative), right thumbstick snap-turns.</p>
       <div id="dist-wrap">
         <span id="dist-label">Distance to the gates</span>
-        <span id="dist">500</span><span id="dist-unit">m</span>
+        <span id="dist">500</span><span id="dist-unit"></span>
       </div>
     </div>
 
@@ -205,22 +205,32 @@
          A throwaway composition test, NOT the game. One question:
          does the Arrival composition hold when you stand in it?
 
-         SCALE NOTE: units are meters-ish. Placement and sizes below are
-         tuned to the canon plate's proportions (arrival-A-v1 /
-         firstsight-v2) — the READ, not the survey. In the fiction's
-         canon the castle is wonder-scale, first seen from 75 MILES
-         away and still filling the sky; no walkable greybox can be
-         surveyed at that size, so the scout compresses the journey
-         to 500 m while keeping the plate's angular proportions:
-         gate wall 72 m, gate-spire tips ~146 m, central spire ~350 m.
+         SCALE — TRUE CANON (rebuilt 2026-11-19 after the first scout
+         failed its scale test in VR: toy proportions read as a small
+         fort). Units are meters. The anchors are Russell's canon:
+         central spire tip EXACTLY 3 miles high (15,840 ft = 4,828 m);
+         gate wall 4,134 ft wide x 2,065 ft tall (1,260 x 629 m);
+         gate opening 1,548 ft wide x 1,031 ft tall (472 x 314 m);
+         first sight of the castle ~11.2 miles out (18,025 m).
+         Immensity = the structure exceeds the field of view: at the
+         gates the wall top leaves your vision and the wall runs out
+         of sight on both sides. The road carries the traveler at
+         journey speed that eases to a walk as the gates near.
          ================================================================ */
 
-      var GATE_FACE_Z = -474;      // gate wall front face: 500 m from spawn
+      var GATE_FACE_Z = -17999;    // gate wall front face: 18,025 m from spawn (~11.2 mi)
       var SPAWN = new THREE.Vector3(0, 0, 26);
       var EYE_DESKTOP = 1.7;
-      var WALK_SPEED = 3.2;        // m/s, on foot
-      var TRAVEL_SPEED = 26;       // m/s, Shift held
-      var GATE_STOP_Z = GATE_FACE_Z + 5;  // halt a few meters before the wall
+      var WALK_SPEED = 3.2;        // m/s, on foot (the final approach)
+      var SPRINT_SPEED = 150;      // m/s, Shift held / journey cap
+      var GATE_STOP_Z = GATE_FACE_Z + 600; // halt where the gates read framed by the wall (600 m out)
+
+      // Journey speed: the road carries you. Fast in the open country,
+      // easing down as the gates near, a walk for the last stretch.
+      function journeySpeed() {
+        var d = Math.max(0, rig.position.z - GATE_FACE_Z);
+        return Math.min(SPRINT_SPEED, Math.max(WALK_SPEED, d * 0.03));
+      }
 
       // ---------- Renderer ----------
       var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -233,10 +243,11 @@
 
       // ---------- Scene, dawn fog ----------
       var scene = new THREE.Scene();
-      // Pinkish-grey dawn fog: the castle must sit IN atmosphere, hazed, not crisp.
-      scene.fog = new THREE.Fog(0xd9b3ab, 140, 1750);
+      // Pinkish-grey dawn fog: at first sight the castle is a hazed
+      // silhouette in atmosphere; it clears as the traveler closes in.
+      scene.fog = new THREE.Fog(0xd9b3ab, 2500, 34000);
 
-      var camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 7000);
+      var camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 160000);
       camera.position.set(0, EYE_DESKTOP, 0);
 
       // Player rig: position = feet on the ground; camera rides on it.
@@ -278,11 +289,11 @@
           '}'
         ].join('\n')
       });
-      scene.add(new THREE.Mesh(new THREE.SphereGeometry(3600, 32, 18), skyMat));
+      scene.add(new THREE.Mesh(new THREE.SphereGeometry(90000, 32, 18), skyMat));
 
       // ---------- Light: one low warm sun + hemisphere ambient ----------
       var sun = new THREE.DirectionalLight(0xffb37c, 2.4);
-      sun.position.set(-260, 170, -720);
+      sun.position.set(-5200, 3400, -14400);
       scene.add(sun);
       scene.add(new THREE.HemisphereLight(0xbcc9dd, 0x6d6250, 0.95));
       scene.add(new THREE.AmbientLight(0xffe2cc, 0.25));
@@ -292,14 +303,14 @@
         var t = Math.min(1, Math.max(0, (x - a) / (b - a)));
         return t * t * (3 - 2 * t);
       }
-      // Gentle rolling noise; flattened along the road corridor and on the
-      // castle plateau so the road and the castle sit on the ground.
+      // Gentle rolling noise; flattened along the road corridor and on
+      // the castle plateau so the road and the castle sit on the ground.
       function groundHeight(x, z) {
         var h = Math.sin(x * 0.011 + 1.7) * Math.cos(z * 0.009 - 0.6) * 3.4
               + Math.sin(x * 0.031 + 0.4) * Math.sin(z * 0.026 + 2.1) * 1.2
               + Math.sin(x * 0.003 - 0.8) * Math.sin(z * 0.004 + 0.3) * 5.0;
-        var corridor = smoothstep(11, 34, Math.abs(x));          // 0 on the road
-        var plateau = smoothstep(-468, -392, z);                  // 0 at the castle
+        var corridor = smoothstep(16, 48, Math.abs(x));           // 0 on the road
+        var plateau = smoothstep(GATE_FACE_Z - 100, GATE_FACE_Z + 900, z); // 0 at the castle
         var behind = smoothstep(150, 260, z) * 0.4 + 0.6;         // calmer behind spawn
         return h * corridor * plateau * behind;
       }
@@ -308,7 +319,7 @@
       // Muted sage/olive ground with rose ground-cover read as COLOR
       // (vertex colors), not geometry — this is a scout.
       (function buildTerrain() {
-        var SIZE = 4600, SEG = 110;
+        var SIZE = 46000, SEG = 128;
         var geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
         geo.rotateX(-Math.PI / 2);
         var pos = geo.attributes.position;
@@ -321,7 +332,7 @@
         var c = new THREE.Color();
         for (var i = 0; i < pos.count; i++) {
           var x = pos.getX(i);
-          var z = pos.getZ(i) - 500; // terrain centred behind spawn, under the castle
+          var z = pos.getZ(i) - 9000; // terrain centred midway down the road
           pos.setZ(i, z);
           pos.setY(i, groundHeight(x, z));
           var n = Math.sin(x * 0.017 + 3.1) * Math.cos(z * 0.013 - 1.2) * 0.5 + 0.5;
@@ -362,12 +373,12 @@
         g.fillRect(52, 0, 26, 256); g.fillRect(178, 0, 26, 256);
         var tex = new THREE.CanvasTexture(cv);
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(1, 46);
+        tex.repeat.set(1, 1410);
         tex.anisotropy = 4;
         tex.colorSpace = THREE.SRGBColorSpace;
-        var roadLen = 117 - GATE_FACE_Z; // 591
+        var roadLen = 117 - GATE_FACE_Z; // 18,116
         var road = new THREE.Mesh(
-          new THREE.PlaneGeometry(11, roadLen),
+          new THREE.PlaneGeometry(22, roadLen),
           new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 })
         );
         road.rotation.x = -Math.PI / 2;
@@ -382,11 +393,11 @@
         var bloomMat = new THREE.MeshStandardMaterial({ color: 0xd07f9f, roughness: 0.8, emissive: 0x5e2438, emissiveIntensity: 0.35 });
         var bushGeo = new THREE.SphereGeometry(1.6, 10, 8);
         var bloomGeo = new THREE.SphereGeometry(0.85, 8, 6);
-        for (var z = 96; z > GATE_FACE_Z + 30; z -= 34) {
-          var side = (Math.round(z / 34) % 2 === 0) ? 1 : -1;
-          var x = side * (8.6 + Math.random() * 2.4);
+        for (var z = 96; z > GATE_FACE_Z + 40; z -= 90) {
+          var side = (Math.round(z / 90) % 2 === 0) ? 1 : -1;
+          var x = side * (13.5 + Math.random() * 3);
           var bush = new THREE.Mesh(bushGeo, greenMat);
-          bush.position.set(x, 0.75, z + (Math.random() * 6 - 3));
+          bush.position.set(x, 0.75, z + (Math.random() * 10 - 5));
           bush.scale.set(1 + Math.random() * 0.5, 0.72, 1 + Math.random() * 0.5);
           scene.add(bush);
           var bloom = new THREE.Mesh(bloomGeo, bloomMat);
@@ -399,19 +410,21 @@
       (function buildHills() {
         var hillMat = new THREE.MeshStandardMaterial({ color: 0x6d7460, roughness: 1 });
         var hills = [
-          [-820, -420, 300, 120], [880, -560, 360, 150], [-1050, -1050, 420, 170],
-          [1020, -1180, 460, 185], [-480, -1500, 520, 200], [560, -1560, 560, 210]
+          [-12000, -6000, 3400, 1100], [12500, -8000, 3800, 1300], [-13000, -14000, 4400, 1500],
+          [13500, -16000, 4600, 1600], [-11000, -21500, 5000, 1700], [12000, -22500, 5200, 1800]
         ];
         for (var i = 0; i < hills.length; i++) {
           var hill = new THREE.Mesh(new THREE.ConeGeometry(hills[i][2], hills[i][3], 24), hillMat);
-          hill.position.set(hills[i][0], hills[i][3] / 2 - 4, hills[i][1]);
+          hill.position.set(hills[i][0], hills[i][3] / 2 - 40, hills[i][1]);
           scene.add(hill);
         }
       })();
 
       // ================================================================
-      // THE CASTLE — greybox massing from primitives, plate proportions.
-      // Gate wall front face at z = -474 (500 m from spawn).
+      // THE CASTLE — greybox massing from primitives, TRUE CANON SCALE.
+      // Gate wall front face at z = -17,999 (18,025 m from spawn).
+      // Wall: 1,260 wide x 629 high x 120 deep, bone-white, built as
+      // segments around a REAL opening 472 wide x 314 high.
       // ================================================================
       var castle = new THREE.Group();
       scene.add(castle);
@@ -430,70 +443,76 @@
       });
       var bannerMat = new THREE.MeshStandardMaterial({ color: 0x7e1c2c, roughness: 0.9, side: THREE.DoubleSide });
 
-      // --- Gate wall: 280 wide x 72 high x 18 deep, bone-white ---
-      var WALL_CZ = GATE_FACE_Z - 9; // centre z = -483
-      var wall = new THREE.Mesh(new THREE.BoxGeometry(280, 72, 18), boneMat);
-      wall.position.set(0, 36, WALL_CZ);
-      castle.add(wall);
+      // --- Gate wall segments around the opening ---
+      var WALL_CZ = GATE_FACE_Z - 60; // centre z
+      var WALL_H = 629, OPEN_HW = 236, OPEN_H = 314;
+      [-1, 1].forEach(function (sx) {
+        var seg = new THREE.Mesh(new THREE.BoxGeometry(394, WALL_H, 120), boneMat);
+        seg.position.set(sx * (OPEN_HW + 197), WALL_H / 2, WALL_CZ);
+        castle.add(seg);
+      });
+      var wallLintel = new THREE.Mesh(new THREE.BoxGeometry(OPEN_HW * 2, WALL_H - OPEN_H, 120), boneMat);
+      wallLintel.position.set(0, OPEN_H + (WALL_H - OPEN_H) / 2, WALL_CZ);
+      castle.add(wallLintel);
       // Cornice lip along the top of the wall
-      var cornice = new THREE.Mesh(new THREE.BoxGeometry(290, 5, 23), boneMat);
-      cornice.position.set(0, 73.5, WALL_CZ);
+      var cornice = new THREE.Mesh(new THREE.BoxGeometry(1300, 44, 150), boneMat);
+      cornice.position.set(0, WALL_H + 22, WALL_CZ);
       castle.add(cornice);
 
-      // --- The gate: near-black slab, 34 wide x 48 high, inset in the wall ---
-      var gate = new THREE.Mesh(new THREE.BoxGeometry(34, 48, 3), obsidianMat);
-      gate.position.set(0, 24, GATE_FACE_Z - 0.4);
+      // --- The gates themselves: near-black slabs recessed in the opening ---
+      var gate = new THREE.Mesh(new THREE.BoxGeometry(460, 306, 6), obsidianMat);
+      gate.position.set(0, 153, GATE_FACE_Z - 26);
       castle.add(gate);
-      // Gate frame: two pillars + lintel, obsidian
+      // Gate frame: two pillars + lintel beam, obsidian, proud of the face
       [-1, 1].forEach(function (sx) {
-        var pillar = new THREE.Mesh(new THREE.BoxGeometry(4.5, 54, 4), obsidianMat);
-        pillar.position.set(sx * 19.5, 27, GATE_FACE_Z + 0.6);
+        var pillar = new THREE.Mesh(new THREE.BoxGeometry(60, 348, 26), obsidianMat);
+        pillar.position.set(sx * 268, 174, GATE_FACE_Z + 4);
         castle.add(pillar);
       });
-      var lintel = new THREE.Mesh(new THREE.BoxGeometry(43.5, 4.5, 4), obsidianMat);
-      lintel.position.set(0, 51.5, GATE_FACE_Z + 0.6);
-      castle.add(lintel);
+      var beam = new THREE.Mesh(new THREE.BoxGeometry(596, 42, 26), obsidianMat);
+      beam.position.set(0, 336, GATE_FACE_Z + 4);
+      castle.add(beam);
 
-      // --- Two black spires standing on the gate wall, tips ~146 m ---
+      // --- Two black spires standing on the gate wall, tips ~1,159 m ---
       [-1, 1].forEach(function (sx) {
-        var x = sx * 96;
-        var drum = new THREE.Mesh(new THREE.CylinderGeometry(10, 12, 38, 14), obsidianMat);
-        drum.position.set(x, 72 + 19, WALL_CZ);
+        var x = sx * 432;
+        var drum = new THREE.Mesh(new THREE.CylinderGeometry(55, 68, 200, 14), obsidianMat);
+        drum.position.set(x, WALL_H + 100, WALL_CZ);
         castle.add(drum);
-        var spire = new THREE.Mesh(new THREE.ConeGeometry(12.5, 36, 14), obsidianMat);
-        spire.position.set(x, 110 + 18, WALL_CZ); // tip at 146
+        var spire = new THREE.Mesh(new THREE.ConeGeometry(72, 330, 14), obsidianMat);
+        spire.position.set(x, WALL_H + 200 + 165, WALL_CZ); // tip at 1,159
         castle.add(spire);
       });
 
-      // --- Crimson banners hanging on the gate wall ---
+      // --- Crimson banners hanging on the gate wall: canon 1,031 ft (314 m) ---
       var banners = [];
       [-1, 1].forEach(function (sx) {
-        var banner = new THREE.Mesh(new THREE.PlaneGeometry(11, 27), bannerMat);
-        banner.position.set(sx * 44, 57, GATE_FACE_Z + 0.55);
+        var banner = new THREE.Mesh(new THREE.PlaneGeometry(130, 314), bannerMat);
+        banner.position.set(sx * 330, 443, GATE_FACE_Z + 1.2);
         castle.add(banner);
         banners.push(banner);
         var rod = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.45, 0.45, 14, 8), obsidianMat);
+          new THREE.CylinderGeometry(3, 3, 160, 8), obsidianMat);
         rod.rotation.z = Math.PI / 2;
-        rod.position.set(sx * 44, 71, GATE_FACE_Z + 0.55);
+        rod.position.set(sx * 330, 606, GATE_FACE_Z + 1.2);
         castle.add(rod);
       });
 
-      // --- Climbing roses on the gate wall: scattered small pink quads ---
+      // --- Climbing roses on the gate wall: drifts of pink on the stone ---
       (function buildRoses() {
-        var roseGeo = new THREE.PlaneGeometry(1.5, 1.5);
+        var roseGeo = new THREE.PlaneGeometry(26, 26);
         var roseMat = new THREE.MeshStandardMaterial({ roughness: 0.7, emissive: 0x6e2438, emissiveIntensity: 0.5 });
-        var roses = new THREE.InstancedMesh(roseGeo, roseMat, 150);
+        var roses = new THREE.InstancedMesh(roseGeo, roseMat, 500);
         var m = new THREE.Matrix4();
         var col = new THREE.Color();
         var placed = 0, guard = 0;
-        while (placed < 150 && guard++ < 3000) {
-          var x = Math.random() * 268 - 134;
-          var y = 3 + Math.random() * 66;
-          if (Math.abs(x) < 24 && y < 56) continue;               // keep the gate clear
-          if (Math.abs(Math.abs(x) - 44) < 8 && y > 40) continue; // keep banners clear
+        while (placed < 500 && guard++ < 8000) {
+          var x = Math.random() * 1230 - 615;
+          var y = 12 + Math.random() * 600;
+          if (Math.abs(x) < 262 && y < 345) continue;                // keep the opening clear
+          if (Math.abs(Math.abs(x) - 330) < 88 && y > 265) continue; // keep banners clear
           m.identity();
-          m.setPosition(x, y, GATE_FACE_Z + 0.35);
+          m.setPosition(x, y, GATE_FACE_Z + 0.8);
           roses.setMatrixAt(placed, m);
           col.setHSL(0.95 + Math.random() * 0.04, 0.55, 0.55 + Math.random() * 0.18);
           roses.setColorAt(placed, col);
@@ -505,8 +524,8 @@
 
       // --- Main rose-quartz mass behind the wall ---
       // Inner curtain wall tying the towers together
-      var curtain = new THREE.Mesh(new THREE.BoxGeometry(250, 56, 16), quartzPaleMat);
-      curtain.position.set(0, 28, -522);
+      var curtain = new THREE.Mesh(new THREE.BoxGeometry(1130, 500, 100), quartzPaleMat);
+      curtain.position.set(0, 250, GATE_FACE_Z - 900);
       castle.add(curtain);
 
       function tower(x, z, rBase, rTop, h, coneH, mat) {
@@ -518,20 +537,20 @@
         castle.add(cone);
         return h + coneH; // tip height
       }
-      // Central keep + THE central spire: tip at ~350 m, clearly the tallest.
+      // Central keep + THE central spire: tip at EXACTLY 4,828 m (3 miles).
       (function buildCentre() {
-        var keep = new THREE.Mesh(new THREE.CylinderGeometry(58, 76, 92, 20), quartzPaleMat);
-        keep.position.set(0, 46, -566);
+        var keep = new THREE.Mesh(new THREE.CylinderGeometry(520, 680, 820, 20), quartzPaleMat);
+        keep.position.set(0, 410, GATE_FACE_Z - 1400);
         castle.add(keep);
-        tower(0, -560, 38, 30, 190, 160, quartzMat); // 190 + 160 = 350 tip
+        tower(0, GATE_FACE_Z - 1300, 340, 270, 2900, 1928, quartzMat); // 2,900 + 1,928 = 4,828 tip
       })();
       // Flanking towers stepping down from the centre
-      tower(-80, -552, 28, 22, 140, 104, quartzMat);    // tip 244
-      tower(80, -552, 28, 22, 140, 104, quartzMat);     // tip 244
-      tower(-142, -544, 21, 16, 96, 74, quartzMat);     // tip 170
-      tower(142, -544, 21, 16, 96, 74, quartzMat);      // tip 170
-      tower(-196, -536, 15, 12, 64, 48, quartzPaleMat); // tip 112
-      tower(196, -536, 15, 12, 64, 48, quartzPaleMat);  // tip 112
+      tower(-520, GATE_FACE_Z - 1200, 250, 200, 2100, 1280, quartzMat);   // tip 3,380
+      tower(520, GATE_FACE_Z - 1200, 250, 200, 2100, 1280, quartzMat);    // tip 3,380
+      tower(-950, GATE_FACE_Z - 1100, 190, 150, 1500, 865, quartzMat);    // tip 2,365
+      tower(950, GATE_FACE_Z - 1100, 190, 150, 1500, 865, quartzMat);     // tip 2,365
+      tower(-1400, GATE_FACE_Z - 1000, 140, 110, 980, 565, quartzPaleMat); // tip 1,545
+      tower(1400, GATE_FACE_Z - 1000, 140, 110, 980, 565, quartzPaleMat);  // tip 1,545
 
       // ================================================================
       // CONTROLS
@@ -630,7 +649,7 @@
 
       function clampRig() {
         rig.position.z = Math.max(GATE_STOP_Z, Math.min(150, rig.position.z));
-        rig.position.x = Math.max(-280, Math.min(280, rig.position.x));
+        rig.position.x = Math.max(-1500, Math.min(1500, rig.position.x));
         rig.position.y = 0;
       }
 
@@ -646,7 +665,7 @@
         if (keys.KeyD || keys.ArrowRight) ix += 1;
         if (keys.KeyA || keys.ArrowLeft) ix -= 1;
         if (!ix && !iz) return;
-        var speed = (keys.ShiftLeft || keys.ShiftRight) ? TRAVEL_SPEED : WALK_SPEED;
+        var speed = (keys.ShiftLeft || keys.ShiftRight) ? SPRINT_SPEED : journeySpeed();
         fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
         right.set(Math.cos(yaw), 0, -Math.sin(yaw));
         move.set(0, 0, 0).addScaledVector(fwd, iz).addScaledVector(right, ix).normalize();
@@ -676,7 +695,7 @@
                 move.set(0, 0, 0).addScaledVector(fwd, -ay).addScaledVector(right, ax);
                 if (move.lengthSq() > 0) {
                   move.normalize();
-                  rig.position.addScaledVector(move, WALK_SPEED * 1.6 * dt);
+                  rig.position.addScaledVector(move, journeySpeed() * dt);
                   clampRig();
                 }
               }
@@ -716,12 +735,14 @@
           }
         }
 
-        // Live distance-to-the-gates readout (straight down the road).
+        // Live distance-to-the-gates readout, in Russell's units:
+        // miles on the road, feet on the final approach.
         distTimer += dt;
         if (distTimer > 0.1) {
           distTimer = 0;
-          var d = Math.max(0, Math.round(rig.position.z - GATE_FACE_Z));
-          distEl.textContent = d;
+          var d = Math.max(0, rig.position.z - GATE_FACE_Z);
+          if (d >= 160.934) distEl.textContent = (d / 1609.344).toFixed(1) + ' MI';
+          else distEl.textContent = Math.round(d * 3.28084) + ' FT';
         }
 
         renderer.render(scene, camera);
