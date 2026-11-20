@@ -228,7 +228,7 @@
       // Journey speed: the road carries you. Fast in the open country,
       // easing down as the gates near, a walk for the last stretch.
       function journeySpeed() {
-        if (window.__paintingMode) return 40;
+        if (window.__paintingMode) return 80;
         var d = Math.max(0, rig.position.z - GATE_FACE_Z);
         return Math.min(SPRINT_SPEED, Math.max(WALK_SPEED, d * 0.03));
       }
@@ -838,8 +838,8 @@
         // (x +/-1,500 m; never closer than the 2,400 m stop line) nailed the
         // gate to the center of his face and stopped him dead mid-walk.
         if (window.__paintingMode) {
-          rig.position.x = Math.max(SPAWN.x - 1500, Math.min(SPAWN.x + 1500, rig.position.x));
-          rig.position.z = Math.max(SPAWN.z - 930, Math.min(SPAWN.z + 60, rig.position.z));
+          rig.position.x = Math.max(SPAWN.x - 23500, Math.min(SPAWN.x + 23500, rig.position.x));
+          rig.position.z = Math.max(PLANE_Z_CONST + 45, Math.min(SPAWN.z + 60, rig.position.z));
           rig.position.y = 0;
           return;
         }
@@ -1022,159 +1022,280 @@
       // ================================================================
       window.__paintingMode = true;
       if (typeof castle !== 'undefined') castle.visible = false;
-      var PLANE_Z = SPAWN.z - 950;
-      (function buildPainting() {
-        var parts = [];
-        var loaded = 0;
-        var N = 3;
-        function tryBuild() {
-          if (loaded < N) return;
-          var b64 = parts.join('');
-          var bin = atob(b64);
-          var bytes = new Uint8Array(bin.length);
-          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          var url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
-          new THREE.TextureLoader().load(url, function (tex) {
-            tex.colorSpace = THREE.SRGBColorSpace;
-            tex.anisotropy = 4;
-            // THE ARRIVAL, SECOND PASS (Russell's rulings, 2026-11-19 22:17):
-            // the wall stretches 15 MILES - the outer strips run 24,000 m
-            // each way, their ends lost in haze; he should never see an end.
-            // The picture's own sky is baked upward above the spires, so
-            // the top never cuts off against a foreign sky. The vantage
-            // closes to 950 m so the black gate and its ramparts, east and
-            // west, stand enlarged in proportion. The Gate Wardens stand at
-            // the picture's gate, normal size against it. The foreground
-            // is POPULATED: rose bushes, blossom trees, country stone.
-            var H = 4490, planeY = H / 2 - 898 + 1.7;
-            tex.wrapS = THREE.ClampToEdgeWrapping;
-            tex.repeat.x = 0.8; tex.offset.x = 0.1;
-            var center = new THREE.Mesh(new THREE.PlaneGeometry(4741, H),
-              new THREE.MeshBasicMaterial({ map: tex }));
-            center.position.set(SPAWN.x, planeY, PLANE_Z);
-            scene.add(center);
-            function strip(side, off) {
-              var t = tex.clone();
-              t.needsUpdate = true;
-              t.repeat.x = 0.1; t.offset.x = off;
-              var m = new THREE.Mesh(new THREE.PlaneGeometry(24000, H),
-                new THREE.MeshBasicMaterial({ map: t }));
-              m.position.set(SPAWN.x + side * 14370, planeY, PLANE_Z);
-              scene.add(m);
-            }
-            strip(-1, 0);
-            strip(1, 0.9);
-            // The Gate Wardens at the picture's gate - a seventh of its
-            // height: normal size to the gate, as he ruled.
-            if (window.__sentinels) {
-              var wpos = [[-260, window.__sentinels[0]], [260, window.__sentinels[1]]];
-              for (var w = 0; w < 2; w++) {
-                var wx = wpos[w][0], ws = wpos[w][1];
-                ws.visible = true;
-                ws.scale.setScalar(1.19);
-                ws.position.set(wx, groundHeight(wx, PLANE_Z + 25) + 0.3, PLANE_Z + 25);
-              }
-            }
-            // The meadow apron, in A-v1's palette.
-            var cv = document.createElement('canvas');
-            cv.width = 256; cv.height = 256;
-            var g = cv.getContext('2d');
-            g.fillStyle = '#8f7f5c'; g.fillRect(0, 0, 256, 256);
-            var tones = ['#a98a72', '#79804f', '#b78f96', '#6d7a48', '#c4a29b', '#5f6e3e'];
-            for (var i = 0; i < 5200; i++) {
-              g.fillStyle = tones[(Math.random() * tones.length) | 0];
-              g.globalAlpha = 0.16 + Math.random() * 0.3;
-              g.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 5, 2 + Math.random() * 5);
-            }
-            g.globalAlpha = 1;
-            for (var p = 0; p < 300; p++) {
-              g.fillStyle = 'rgba(216,140,166,0.55)';
-              g.fillRect(Math.random() * 256, Math.random() * 256, 2.4, 1.6);
-            }
-            var gt = new THREE.CanvasTexture(cv);
-            gt.colorSpace = THREE.SRGBColorSpace;
-            gt.wrapS = THREE.RepeatWrapping; gt.wrapT = THREE.RepeatWrapping;
-            gt.repeat.set(12, 5);
-            var apronGeo = new THREE.PlaneGeometry(3400, 1450, 64, 24);
-            apronGeo.rotateX(-Math.PI / 2);
-            var dp = apronGeo.attributes.position;
-            for (var vi = 0; vi < dp.count; vi++) {
-              var vx = dp.getX(vi) + SPAWN.x, vz = dp.getZ(vi) + SPAWN.z - 640;
-              dp.setY(vi, groundHeight(vx, vz) + 0.3);
-            }
-            apronGeo.computeVertexNormals();
-            var apron = new THREE.Mesh(apronGeo,
-              new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
-            apron.position.set(SPAWN.x, 0, SPAWN.z - 640);
-            scene.add(apron);
-            // POPULATE the foreground: rose bushes with blooms, blossom
-            // trees, country stone - the road kept clear.
-            var dummy = new THREE.Object3D();
-            function scatterXZ() {
-              var x = (Math.random() * 2 - 1) * 1600;
-              if (Math.abs(x) < 16) x = 16 + Math.random() * 30;
-              var z = SPAWN.z - 900 + Math.random() * 940;
-              return [x, z];
-            }
-            var NB = 220;
-            var bushes = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 6),
-              new THREE.MeshStandardMaterial({ color: 0x55663a, roughness: 1 }), NB);
-            var blooms = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 5),
-              new THREE.MeshStandardMaterial({ color: 0xd4709e, roughness: 1 }), NB);
-            for (var b = 0; b < NB; b++) {
-              var bp = scatterXZ(), bs = 1.4 + Math.random() * 2.2;
-              var by = groundHeight(bp[0], bp[1]) + 0.3;
-              dummy.position.set(bp[0], by + bs * 0.55, bp[1]);
-              dummy.scale.set(bs, bs * 0.72, bs);
-              dummy.rotation.set(0, Math.random() * 3.14, 0);
-              dummy.updateMatrix();
-              bushes.setMatrixAt(b, dummy.matrix);
-              dummy.position.set(bp[0], by + bs * 1.05, bp[1]);
-              dummy.scale.set(bs * 0.55, bs * 0.4, bs * 0.55);
-              dummy.updateMatrix();
-              blooms.setMatrixAt(b, dummy.matrix);
-            }
-            scene.add(bushes); scene.add(blooms);
-            var NT = 36;
-            var trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.24, 2.4, 6),
-              new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1 }), NT);
-            var canopies = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6),
-              new THREE.MeshStandardMaterial({ color: 0xcf8fa5, roughness: 1 }), NT);
-            for (var t2 = 0; t2 < NT; t2++) {
-              var tp = scatterXZ(), ts = 0.8 + Math.random() * 0.9;
-              var ty = groundHeight(tp[0], tp[1]) + 0.3;
-              dummy.position.set(tp[0], ty + 1.2 * ts, tp[1]);
-              dummy.scale.set(ts, ts, ts);
-              dummy.rotation.set(0, Math.random() * 3.14, 0);
-              dummy.updateMatrix();
-              trunks.setMatrixAt(t2, dummy.matrix);
-              dummy.position.set(tp[0], ty + (2.4 + 1.1) * ts, tp[1]);
-              dummy.scale.set(2.0 * ts, 1.5 * ts, 2.0 * ts);
-              dummy.updateMatrix();
-              canopies.setMatrixAt(t2, dummy.matrix);
-            }
-            scene.add(trunks); scene.add(canopies);
-            var NR = 60;
-            var rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0),
-              new THREE.MeshStandardMaterial({ color: 0x8b8578, roughness: 1 }), NR);
-            for (var r2 = 0; r2 < NR; r2++) {
-              var rp = scatterXZ(), rs = 0.4 + Math.random() * 1.3;
-              dummy.position.set(rp[0], groundHeight(rp[0], rp[1]) + 0.3 + rs * 0.3, rp[1]);
-              dummy.scale.set(rs, rs * 0.7, rs);
-              dummy.rotation.set(Math.random(), Math.random() * 3.14, Math.random());
-              dummy.updateMatrix();
-              rocks.setMatrixAt(r2, dummy.matrix);
-            }
-            scene.add(rocks);
-          });
+      var PLANE_Z_CONST = SPAWN.z - 950;
+      (function buildBoard() {
+        var PLANE_Z = PLANE_Z_CONST;
+        var dummy = new THREE.Object3D();
+        var col = new THREE.Color();
+        function jitter(m) { return 0.9 + Math.random() * 0.16; }
+
+        // ============ THE WALL - instanced stone tiles, 15 miles each way.
+        // Standard game protocol: detail is GEOMETRY + repeating material,
+        // crisp at every distance, continuous as you move.
+        var ROWS = 18, TILE_H = 30, TILE_W = 60, WALL_H = ROWS * TILE_H;
+        var cols = 800;
+        var tiles = new THREE.InstancedMesh(new THREE.BoxGeometry(TILE_W, TILE_H, 10), boneMat, cols * ROWS);
+        var ti = 0;
+        for (var cx = 0; cx < cols; cx++) {
+          var wx = -24000 + (cx + 0.5) * TILE_W;
+          if (Math.abs(wx) < 90) continue; // the gate notch
+          for (var ry = 0; ry < ROWS; ry++) {
+            dummy.position.set(wx, ry * TILE_H + TILE_H / 2, PLANE_Z - 5);
+            dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            tiles.setMatrixAt(ti, dummy.matrix);
+            tiles.setColorAt(ti, col.setScalar(jitter()));
+            ti++;
+          }
         }
-        for (var k = 0; k < N; k++) {
-          (function (idx) {
-            fetch('av2-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
-              parts[idx] = t; loaded++; tryBuild();
-            }).catch(function () { /* painting unavailable */ });
-          })(k);
+        tiles.count = ti;
+        scene.add(tiles);
+        // Crenellations: merlons along the whole top.
+        var merlons = new THREE.InstancedMesh(new THREE.BoxGeometry(3, 3.4, 2.2), boneMat, 8000);
+        var mi = 0;
+        for (var mx = -23997; mx < 24000 && mi < 8000; mx += 6) {
+          if (Math.abs(mx) < 62) continue;
+          dummy.position.set(mx, WALL_H + 1.7, PLANE_Z - 1);
+          dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          merlons.setMatrixAt(mi, dummy.matrix);
+          merlons.setColorAt(mi, col.setScalar(jitter()));
+          mi++;
         }
+        merlons.count = mi;
+        scene.add(merlons);
+        // The dark roofline running the wall's length.
+        var roofline = new THREE.InstancedMesh(new THREE.BoxGeometry(TILE_W, 9, 13), obsidianMat, cols);
+        var ri = 0;
+        for (var rx = 0; rx < cols; rx++) {
+          var rwx = -24000 + (rx + 0.5) * TILE_W;
+          if (Math.abs(rwx) < 60) continue;
+          dummy.position.set(rwx, WALL_H + 4.5, PLANE_Z - 5);
+          dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          roofline.setMatrixAt(ri, dummy.matrix);
+          ri++;
+        }
+        roofline.count = ri;
+        scene.add(roofline);
+        // Bastions every 300 m, black cone roofs.
+        var bast = [];
+        for (var bx = -23850; bx <= 23850; bx += 300) { if (Math.abs(bx) > 120) bast.push(bx); }
+        var bastMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(44, 50, 640, 10), boneMat, bast.length);
+        var roofMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(52, 64, 10), obsidianMat, bast.length);
+        for (var b2 = 0; b2 < bast.length; b2++) {
+          dummy.position.set(bast[b2], 320, PLANE_Z - 2);
+          dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          bastMesh.setMatrixAt(b2, dummy.matrix);
+          bastMesh.setColorAt(b2, col.setScalar(jitter()));
+          dummy.position.set(bast[b2], 640 + 32, PLANE_Z - 2);
+          dummy.updateMatrix();
+          roofMesh.setMatrixAt(b2, dummy.matrix);
+        }
+        scene.add(bastMesh); scene.add(roofMesh);
+        // Crimson banners on the face, between the bastions.
+        var bcv = document.createElement('canvas');
+        bcv.width = 256; bcv.height = 512;
+        var bg2 = bcv.getContext('2d');
+        bg2.fillStyle = '#7a1622'; bg2.fillRect(0, 0, 256, 512);
+        bg2.strokeStyle = '#e8e0cc'; bg2.lineWidth = 26; bg2.lineCap = 'round';
+        bg2.beginPath(); bg2.moveTo(52, 130); bg2.lineTo(204, 300); bg2.moveTo(204, 130); bg2.lineTo(52, 300); bg2.stroke();
+        bg2.fillStyle = '#c9a44a'; bg2.fillRect(0, 0, 256, 18);
+        for (var fx = 16; fx < 256; fx += 32) bg2.fillRect(fx, 478, 7, 34);
+        var bannerTex = new THREE.CanvasTexture(bcv);
+        bannerTex.colorSpace = THREE.SRGBColorSpace;
+        var bannerMat = new THREE.MeshStandardMaterial({ map: bannerTex, side: THREE.DoubleSide, roughness: 0.9 });
+        var banPos = [];
+        for (var bn = -23760; bn <= 23760; bn += 240) { if (Math.abs(bn) > 170) banPos.push(bn); }
+        var banners = new THREE.InstancedMesh(new THREE.PlaneGeometry(38, 130), bannerMat, banPos.length);
+        for (var b3 = 0; b3 < banPos.length; b3++) {
+          dummy.position.set(banPos[b3], WALL_H - 95, PLANE_Z + 3);
+          dummy.rotation.set(0, (Math.random() - 0.5) * 0.05, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          banners.setMatrixAt(b3, dummy.matrix);
+        }
+        scene.add(banners);
+        // Rose-quartz blades studding the face.
+        var bladeMat = new THREE.MeshStandardMaterial({ color: 0xe8a7bd, map: quartzTex, roughness: 0.35, emissive: 0x903c58, emissiveIntensity: 0.3 });
+        var NB2 = 480;
+        var blades = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), bladeMat, NB2);
+        for (var b4 = 0; b4 < NB2; b4++) {
+          var blx = -23800 + Math.random() * 47600;
+          if (Math.abs(blx) < 90) blx += 200;
+          var blh = 60 + Math.random() * 150;
+          dummy.position.set(blx, 120 + Math.random() * 330, PLANE_Z + 5);
+          dummy.rotation.set((Math.random() - 0.5) * 0.09, Math.random() * 3.14, (Math.random() - 0.5) * 0.09);
+          dummy.scale.set(blh * 0.16, blh, blh * 0.16);
+          dummy.updateMatrix();
+          blades.setMatrixAt(b4, dummy.matrix);
+        }
+        scene.add(blades);
+
+        // ============ THE GATE - black, pointed, bigger than its guardians.
+        var gateTowerGeo = new THREE.CylinderGeometry(26, 30, 580, 10);
+        var gt1 = new THREE.Mesh(gateTowerGeo, obsidianMat); gt1.position.set(-104, 290, PLANE_Z - 4); scene.add(gt1);
+        var gt2 = new THREE.Mesh(gateTowerGeo, obsidianMat); gt2.position.set(104, 290, PLANE_Z - 4); scene.add(gt2);
+        var roofGeo = new THREE.ConeGeometry(32, 74, 10);
+        var gr1 = new THREE.Mesh(roofGeo, obsidianMat); gr1.position.set(-104, 580 + 37, PLANE_Z - 4); scene.add(gr1);
+        var gr2 = new THREE.Mesh(roofGeo, obsidianMat); gr2.position.set(104, 580 + 37, PLANE_Z - 4); scene.add(gr2);
+        var lintel = new THREE.Mesh(new THREE.BoxGeometry(240, 96, 16), obsidianMat);
+        lintel.position.set(0, 492, PLANE_Z - 3); scene.add(lintel);
+        var doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: obsidianTex, roughness: 0.5, metalness: 0.15 });
+        var doorL = new THREE.Mesh(new THREE.BoxGeometry(84, 452, 6), doorMat); doorL.position.set(-42.5, 226, PLANE_Z - 14); scene.add(doorL);
+        var doorR = new THREE.Mesh(new THREE.BoxGeometry(84, 452, 6), doorMat); doorR.position.set(42.5, 226, PLANE_Z - 14); scene.add(doorR);
+        var bandMat = new THREE.MeshStandardMaterial({ color: 0x8a6f3c, roughness: 0.4, metalness: 0.7 });
+        for (var bd = 0; bd < 3; bd++) {
+          var band = new THREE.Mesh(new THREE.BoxGeometry(170, 10, 2), bandMat);
+          band.position.set(0, 90 + bd * 150, PLANE_Z - 10.4);
+          scene.add(band);
+        }
+        var keystone = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), bladeMat);
+        keystone.scale.set(18, 120, 18); keystone.position.set(0, 600, PLANE_Z + 4); scene.add(keystone);
+
+        // ============ THE MASSIF - crystal spires + stone towers behind.
+        var spireMat = new THREE.MeshStandardMaterial({ color: 0xe39db2, map: quartzTex, roughness: 0.38, emissive: 0x7c2d47, emissiveIntensity: 0.16 });
+        var NS = 85;
+        var spires = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), spireMat, NS);
+        for (var s2 = 0; s2 < NS; s2++) {
+          var sx = Math.sign(Math.random() - 0.5) * Math.pow(Math.random(), 1.5) * 6000;
+          var sh = (700 + Math.random() * 2400) * (1.35 - Math.min(0.6, Math.abs(sx) / 9000));
+          dummy.position.set(sx, sh / 2 - 60, PLANE_Z - 500 - Math.random() * 2900);
+          dummy.rotation.set(0, Math.random() * 3.14, 0);
+          dummy.scale.set(sh * 0.075, sh, sh * 0.075);
+          dummy.updateMatrix();
+          spires.setMatrixAt(s2, dummy.matrix);
+        }
+        scene.add(spires);
+        // Hero crystals directly behind the gate - the painting's heart.
+        for (var h2 = 0; h2 < 3; h2++) {
+          var hh = 2500 + Math.random() * 1100;
+          var hero = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), spireMat);
+          hero.scale.set(hh * 0.08, hh, hh * 0.08);
+          hero.position.set(-520 + h2 * 520 + (Math.random() - 0.5) * 60, hh / 2 - 60, PLANE_Z - 800 - Math.random() * 260);
+          hero.rotation.y = Math.random() * 3.14;
+          scene.add(hero);
+        }
+        var NT2 = 70;
+        var stoneT = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1.25, 1, 9), boneMat, NT2);
+        var stoneR = new THREE.InstancedMesh(new THREE.ConeGeometry(1.35, 0.32, 9), obsidianMat, NT2);
+        for (var t3 = 0; t3 < NT2; t3++) {
+          var tx = Math.sign(Math.random() - 0.5) * (300 + Math.random() * 5200);
+          var th = 600 + Math.random() * 1200, tr = 42 + Math.random() * 48;
+          var tz = PLANE_Z - 260 - Math.random() * 1800;
+          dummy.position.set(tx, th / 2 - 40, tz);
+          dummy.rotation.set(0, 0, 0); dummy.scale.set(tr, th, tr);
+          dummy.updateMatrix();
+          stoneT.setMatrixAt(t3, dummy.matrix);
+          stoneT.setColorAt(t3, col.setScalar(jitter()));
+          dummy.position.set(tx, th - 40 + th * 0.16, tz);
+          dummy.scale.set(tr, th, tr);
+          dummy.updateMatrix();
+          stoneR.setMatrixAt(t3, dummy.matrix);
+        }
+        scene.add(stoneT); scene.add(stoneR);
+
+        // ============ THE GUARDIANS - placeholders at the gate, 1/6 its height.
+        if (window.__sentinels) {
+          var wpos = [[-128, window.__sentinels[0]], [128, window.__sentinels[1]]];
+          for (var w = 0; w < 2; w++) {
+            var wx = wpos[w][0], ws = wpos[w][1];
+            ws.visible = true;
+            ws.scale.setScalar(1.19);
+            ws.position.set(wx, groundHeight(wx, PLANE_Z + 25) + 0.3, PLANE_Z + 25);
+          }
+        }
+
+        // ============ THE MEADOW - 15 miles of it, populated.
+        var cv = document.createElement('canvas');
+        cv.width = 256; cv.height = 256;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#8f7f5c'; g.fillRect(0, 0, 256, 256);
+        var tones = ['#a98a72', '#79804f', '#b78f96', '#6d7a48', '#c4a29b', '#5f6e3e'];
+        for (var i = 0; i < 5200; i++) {
+          g.fillStyle = tones[(Math.random() * tones.length) | 0];
+          g.globalAlpha = 0.16 + Math.random() * 0.3;
+          g.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 5, 2 + Math.random() * 5);
+        }
+        g.globalAlpha = 1;
+        for (var p = 0; p < 300; p++) {
+          g.fillStyle = 'rgba(216,140,166,0.55)';
+          g.fillRect(Math.random() * 256, Math.random() * 256, 2.4, 1.6);
+        }
+        var gt = new THREE.CanvasTexture(cv);
+        gt.colorSpace = THREE.SRGBColorSpace;
+        gt.wrapS = THREE.RepeatWrapping; gt.wrapT = THREE.RepeatWrapping;
+        gt.repeat.set(160, 5);
+        var apronGeo = new THREE.PlaneGeometry(50000, 1450, 256, 24);
+        apronGeo.rotateX(-Math.PI / 2);
+        var dp = apronGeo.attributes.position;
+        for (var vi = 0; vi < dp.count; vi++) {
+          var vx = dp.getX(vi) + SPAWN.x, vz = dp.getZ(vi) + SPAWN.z - 640;
+          dp.setY(vi, groundHeight(vx, vz) + 0.3);
+        }
+        apronGeo.computeVertexNormals();
+        var apron = new THREE.Mesh(apronGeo,
+          new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
+        apron.position.set(SPAWN.x, 0, SPAWN.z - 640);
+        scene.add(apron);
+        function scatterXZ() {
+          var x = (Math.random() * 2 - 1) * 23000;
+          if (Math.abs(x) < 16) x = 16 + Math.random() * 30;
+          var z = SPAWN.z - 900 + Math.random() * 940;
+          return [x, z];
+        }
+        var NB = 2400;
+        var bushes = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 6),
+          new THREE.MeshStandardMaterial({ color: 0x55663a, roughness: 1 }), NB);
+        var blooms = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 5),
+          new THREE.MeshStandardMaterial({ color: 0xd4709e, roughness: 1 }), NB);
+        for (var b = 0; b < NB; b++) {
+          var bp = scatterXZ(), bs = 1.4 + Math.random() * 2.2;
+          var by = groundHeight(bp[0], bp[1]) + 0.3;
+          dummy.position.set(bp[0], by + bs * 0.55, bp[1]);
+          dummy.scale.set(bs, bs * 0.72, bs);
+          dummy.rotation.set(0, Math.random() * 3.14, 0);
+          dummy.updateMatrix();
+          bushes.setMatrixAt(b, dummy.matrix);
+          dummy.position.set(bp[0], by + bs * 1.05, bp[1]);
+          dummy.scale.set(bs * 0.55, bs * 0.4, bs * 0.55);
+          dummy.updateMatrix();
+          blooms.setMatrixAt(b, dummy.matrix);
+        }
+        scene.add(bushes); scene.add(blooms);
+        var NT = 420;
+        var trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.24, 2.4, 6),
+          new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1 }), NT);
+        var canopies = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6),
+          new THREE.MeshStandardMaterial({ color: 0xcf8fa5, roughness: 1 }), NT);
+        for (var t2 = 0; t2 < NT; t2++) {
+          var tp = scatterXZ(), ts = 0.8 + Math.random() * 0.9;
+          var ty = groundHeight(tp[0], tp[1]) + 0.3;
+          dummy.position.set(tp[0], ty + 1.2 * ts, tp[1]);
+          dummy.scale.set(ts, ts, ts);
+          dummy.rotation.set(0, Math.random() * 3.14, 0);
+          dummy.updateMatrix();
+          trunks.setMatrixAt(t2, dummy.matrix);
+          dummy.position.set(tp[0], ty + (2.4 + 1.1) * ts, tp[1]);
+          dummy.scale.set(2.0 * ts, 1.5 * ts, 2.0 * ts);
+          dummy.updateMatrix();
+          canopies.setMatrixAt(t2, dummy.matrix);
+        }
+        scene.add(trunks); scene.add(canopies);
+        var NR = 500;
+        var rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0),
+          new THREE.MeshStandardMaterial({ color: 0x8b8578, roughness: 1 }), NR);
+        for (var r2 = 0; r2 < NR; r2++) {
+          var rp = scatterXZ(), rs = 0.4 + Math.random() * 1.3;
+          dummy.position.set(rp[0], groundHeight(rp[0], rp[1]) + 0.3 + rs * 0.3, rp[1]);
+          dummy.scale.set(rs, rs * 0.7, rs);
+          dummy.rotation.set(Math.random(), Math.random() * 3.14, Math.random());
+          dummy.updateMatrix();
+          rocks.setMatrixAt(r2, dummy.matrix);
+        }
+        scene.add(rocks);
       })();
 
       // ---------- Main loop (setAnimationLoop: required for WebXR) ----------
