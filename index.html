@@ -298,6 +298,14 @@
       scene.add(sun);
       scene.add(new THREE.HemisphereLight(0xbcc9dd, 0x6d6250, 0.95));
       scene.add(new THREE.AmbientLight(0xffe2cc, 0.25));
+      // Dawn bounce off the country behind the traveler: a soft fill so the
+      // gate face and the Sentinels read at close range instead of going
+      // black (the sun itself rides behind the castle - backlit dawn).
+      var faceFill = new THREE.DirectionalLight(0xffd9c0, 1.15);
+      faceFill.position.set(3000, 2600, GATE_FACE_Z + 10000);
+      faceFill.target.position.set(0, 400, GATE_FACE_Z + 200);
+      scene.add(faceFill);
+      scene.add(faceFill.target);
 
       // ---------- Helpers ----------
       function smoothstep(a, b, x) {
@@ -564,7 +572,11 @@
       var WALL_CZ = -60; // centre z
       // PLATE PROPORTIONS (Russell's verdict 2026-11-19): the gate is a doorway
       // in a cliff - wall 3,150 wide x 945 high, the opening unchanged.
-      var WALL_H = 945, WALL_HW = 4830, OPEN_HW = 236, OPEN_H = 314;
+      var WALL_H = 945, WALL_HW = 4830, OPEN_HW = 472, OPEN_H = 628;
+      // THE GATE (Russell, 2026-11-19): nine gates around a perimeter a day's
+      // travel wide - this gate is the only game in town for ~15 miles of wall
+      // in either direction, so the gate itself is IMMENSE: 3,776 m wide x
+      // 2,512 m tall in world measure. It serves a metropolis; it is sized so.
       // THE MEASURE (Russell, from the Eclipse plate): the wall runs ~12 miles
       // each way from this gate - skip the presented gate and you WALK 5-15
       // miles to the next. That distance is the tax, and the tax is the size.
@@ -610,9 +622,11 @@
       });
 
       // --- A rose-quartz course band across the wall face ---
-      var course = new THREE.Mesh(new THREE.BoxGeometry(WALL_HW * 2, 60, 122), quartzPaleMat);
-      course.position.set(0, 500, -60);
-      castle.add(course);
+      [-1, 1].forEach(function (sx) {
+        var course = new THREE.Mesh(new THREE.BoxGeometry(WALL_HW - OPEN_HW, 60, 122), quartzPaleMat);
+        course.position.set(sx * (OPEN_HW + (WALL_HW - OPEN_HW) / 2), 500, -60);
+        castle.add(course);
+      });
 
       // --- Rose-quartz blades studding the wall face (from the plate) ---
       (function buildBlades() {
@@ -627,17 +641,17 @@
       })();
 
       // --- The gates themselves: near-black slabs recessed in the opening ---
-      var gate = new THREE.Mesh(new THREE.BoxGeometry(460, 306, 6), obsidianMat);
-      gate.position.set(0, 153, -26);
+      var gate = new THREE.Mesh(new THREE.BoxGeometry(940, 620, 6), obsidianMat);
+      gate.position.set(0, 310, -40);
       castle.add(gate);
       // Gate frame: two pillars + lintel beam, obsidian, proud of the face
       [-1, 1].forEach(function (sx) {
-        var pillar = new THREE.Mesh(new THREE.BoxGeometry(60, 348, 26), obsidianMat);
-        pillar.position.set(sx * 268, 174, 4);
+        var pillar = new THREE.Mesh(new THREE.BoxGeometry(64, 664, 26), obsidianMat);
+        pillar.position.set(sx * 504, 332, 4);
         castle.add(pillar);
       });
-      var beam = new THREE.Mesh(new THREE.BoxGeometry(596, 42, 26), obsidianMat);
-      beam.position.set(0, 336, 4);
+      var beam = new THREE.Mesh(new THREE.BoxGeometry(1072, 46, 26), obsidianMat);
+      beam.position.set(0, 651, 4);
       castle.add(beam);
 
       // --- Two black spires standing on the gate wall, tips ~1,159 m ---
@@ -653,7 +667,7 @@
 
       // --- Crimson banners hanging on the gate wall: canon 1,031 ft (314 m) ---
       var banners = [];
-      [-4550, -3350, -2150, -950, -330, 330, 950, 2150, 3350, 4550].forEach(function (bx) {
+      [-4550, -3350, -2150, -950, -640, 640, 950, 2150, 3350, 4550].forEach(function (bx) {
         var banner = new THREE.Mesh(new THREE.PlaneGeometry(130, 314), bannerMat);
         banner.position.set(bx, 443, 1.2);
         castle.add(banner);
@@ -676,8 +690,8 @@
         while (placed < 900 && guard++ < 16000) {
           var x = Math.random() * 9400 - 4700;
           var y = 12 + Math.random() * 900;
-          if (Math.abs(x) < 262 && y < 345) continue;                // keep the opening clear
-          if ((Math.abs(Math.abs(x) - 330) < 88 || Math.abs(Math.abs(x) - 950) < 88 || Math.abs(Math.abs(x) - 2150) < 88 || Math.abs(Math.abs(x) - 3350) < 88 || Math.abs(Math.abs(x) - 4550) < 88) && y > 265) continue; // keep banners clear
+          if (Math.abs(x) < 512 && y < 668) continue;                // keep the opening clear
+          if ((Math.abs(Math.abs(x) - 640) < 88 || Math.abs(Math.abs(x) - 950) < 88 || Math.abs(Math.abs(x) - 2150) < 88 || Math.abs(Math.abs(x) - 3350) < 88 || Math.abs(Math.abs(x) - 4550) < 88) && y > 265) continue; // keep banners clear
           m.identity();
           m.setPosition(x, y, 0.8);
           roses.setMatrixAt(placed, m);
@@ -885,6 +899,109 @@
           }
         }
       }
+
+      // ================================================================
+      // THE ROOK SENTINELS - the Gate Wardens, at proportion (Russell,
+      // 2026-11-19). The pair stands at every gate, in the rooks' place:
+      // black crystal with PINK veins; pink quartz with THICK BLACK veins.
+      // Guardians the city can call on. Proportion chain: a 6-ft man cannot
+      // see over their FOOT (boot block 4 m) - the figure stands 64 m -
+      // and even so they are small beside the gate, as they are small
+      // beside the Eclipse.
+      // ================================================================
+      (function buildSentinels() {
+        function veinCanvas(paint) {
+          var cv = document.createElement('canvas');
+          cv.width = 256; cv.height = 256;
+          paint(cv.getContext('2d'));
+          var t = new THREE.CanvasTexture(cv);
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.colorSpace = THREE.SRGBColorSpace;
+          return t;
+        }
+        // Pink veins on near-black (emissive map: only the veins glow)
+        var pinkVeinTex = veinCanvas(function (g) {
+          g.fillStyle = '#000000'; g.fillRect(0, 0, 256, 256);
+          g.strokeStyle = '#ff7ba9'; g.lineCap = 'round';
+          for (var i = 0; i < 26; i++) {
+            var x = Math.random() * 256, y = Math.random() * 256;
+            g.lineWidth = 1 + Math.random() * 3;
+            g.beginPath(); g.moveTo(x, y);
+            var segs = 3 + (Math.random() * 4 | 0);
+            for (var s = 0; s < segs; s++) {
+              x += Math.random() * 60 - 30; y += Math.random() * 60 - 30;
+              g.lineTo(x, y);
+            }
+            g.stroke();
+          }
+        });
+        // Thick black veins on rose quartz
+        var blackVeinTex = veinCanvas(function (g) {
+          var grad = g.createLinearGradient(0, 0, 0, 256);
+          grad.addColorStop(0, '#eec2d0'); grad.addColorStop(1, '#cf8fa5');
+          g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+          g.strokeStyle = '#171310'; g.lineCap = 'round';
+          for (var i = 0; i < 16; i++) {
+            var x = Math.random() * 256, y = Math.random() * 256;
+            g.lineWidth = 5 + Math.random() * 6;
+            g.beginPath(); g.moveTo(x, y);
+            var segs = 2 + (Math.random() * 3 | 0);
+            for (var s = 0; s < segs; s++) {
+              x += Math.random() * 70 - 35; y += Math.random() * 70 - 35;
+              g.lineTo(x, y);
+            }
+            g.stroke();
+          }
+        });
+        var blackWardenMat = new THREE.MeshStandardMaterial({
+          color: 0x8a8296, map: obsidianTex, roughness: 0.5, metalness: 0.1,
+          emissive: 0xff6f9f, emissiveMap: pinkVeinTex, emissiveIntensity: 1.15
+        });
+        var pinkWardenMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: blackVeinTex, roughness: 0.42, metalness: 0,
+          emissive: 0x8e3049, emissiveIntensity: 0.15
+        });
+
+        function makeSentinel(mat) {
+          var grp = new THREE.Group();
+          function box(w, d, h, x, y, z) {
+            var b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            b.position.set(x, y, z);
+            grp.add(b);
+          }
+          [-1, 1].forEach(function (s) {
+            box(6, 11, 4, s * 3.4, 2, 0.5);        // boot - taller than a man
+            box(4.6, 5, 14, s * 3.4, 11, 0);       // shin
+            box(6.2, 6, 3, s * 3.4, 19.5, 0);      // knee
+            box(5.4, 5.8, 12, s * 3.4, 27, 0);     // thigh
+            box(6.5, 6.5, 6, s * 10.8, 49.5, 0);   // pauldron
+            box(4.6, 5, 11, s * 11.2, 42, 0);      // upper arm
+            box(5.2, 5.6, 10, s * 11.2, 32.5, 0);  // forearm
+            box(6, 6, 5.5, s * 11.2, 25.5, 0);     // fist
+          });
+          box(13, 7, 5, 0, 35.5, 0);               // pelvis
+          box(15, 8.5, 14, 0, 45, 0);              // torso
+          box(16.5, 9.5, 3, 0, 47, 3.5);           // chest plate
+          box(13, 10, 2.5, 0, 53, 0);              // battlement collar
+          for (var i = 0; i < 6; i++) {
+            var a = i / 6 * Math.PI * 2;
+            box(2.2, 2.2, 2.5, Math.cos(a) * 5.2, 55.5, Math.sin(a) * 4.2); // collar merlons
+            box(1.8, 1.8, 2.6, Math.cos(a) * 3.1, 61.5, Math.sin(a) * 3.1); // helm merlons
+          }
+          var helm = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.9, 5.5, 10), mat);
+          helm.position.set(0, 57.5, 0);
+          grp.add(helm);
+          box(0.8, 5, 3, 0, 62.5, 0);              // helm fin - top at 64 m
+          return grp;
+        }
+
+        var left = makeSentinel(blackWardenMat);   // black crystal, pink veins
+        left.position.set(-2150, groundHeight(-2150, GATE_FACE_Z + 320), GATE_FACE_Z + 320);
+        scene.add(left);
+        var right = makeSentinel(pinkWardenMat);   // pink quartz, black veins
+        right.position.set(2150, groundHeight(2150, GATE_FACE_Z + 320), GATE_FACE_Z + 320);
+        scene.add(right);
+      })();
 
       // ---------- Main loop (setAnimationLoop: required for WebXR) ----------
       var clock = new THREE.Clock();
