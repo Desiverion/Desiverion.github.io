@@ -1038,7 +1038,7 @@
         var ti = 0;
         for (var cx = 0; cx < cols; cx++) {
           var wx = -24000 + (cx + 0.5) * TILE_W;
-          if (Math.abs(wx) < 90) continue; // the gate notch
+          if (Math.abs(wx) < 130) continue; // the gate notch
           for (var ry = 0; ry < ROWS; ry++) {
             dummy.position.set(wx, ry * TILE_H + TILE_H / 2, PLANE_Z - 5);
             dummy.rotation.set(0, 0, 0);
@@ -1081,7 +1081,7 @@
         scene.add(roofline);
         // Bastions every 300 m, black cone roofs.
         var bast = [];
-        for (var bx = -23850; bx <= 23850; bx += 300) { if (Math.abs(bx) > 120) bast.push(bx); }
+        for (var bx = -23850; bx <= 23850; bx += 300) { if (Math.abs(bx) > 210) bast.push(bx); }
         var bastMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(44, 50, 640, 10), boneMat, bast.length);
         var roofMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(52, 64, 10), obsidianMat, bast.length);
         for (var b2 = 0; b2 < bast.length; b2++) {
@@ -1108,7 +1108,7 @@
         bannerTex.colorSpace = THREE.SRGBColorSpace;
         var bannerMat = new THREE.MeshStandardMaterial({ map: bannerTex, side: THREE.DoubleSide, roughness: 0.9 });
         var banPos = [];
-        for (var bn = -23760; bn <= 23760; bn += 240) { if (Math.abs(bn) > 170) banPos.push(bn); }
+        for (var bn = -23760; bn <= 23760; bn += 240) { if (Math.abs(bn) > 280) banPos.push(bn); }
         var banners = new THREE.InstancedMesh(new THREE.PlaneGeometry(38, 130), bannerMat, banPos.length);
         for (var b3 = 0; b3 < banPos.length; b3++) {
           dummy.position.set(banPos[b3], WALL_H - 95, PLANE_Z + 3);
@@ -1135,25 +1135,35 @@
         scene.add(blades);
 
         // ============ THE GATE - black, pointed, bigger than its guardians.
-        var gateTowerGeo = new THREE.CylinderGeometry(26, 30, 580, 10);
-        var gt1 = new THREE.Mesh(gateTowerGeo, obsidianMat); gt1.position.set(-104, 290, PLANE_Z - 4); scene.add(gt1);
-        var gt2 = new THREE.Mesh(gateTowerGeo, obsidianMat); gt2.position.set(104, 290, PLANE_Z - 4); scene.add(gt2);
-        var roofGeo = new THREE.ConeGeometry(32, 74, 10);
-        var gr1 = new THREE.Mesh(roofGeo, obsidianMat); gr1.position.set(-104, 580 + 37, PLANE_Z - 4); scene.add(gr1);
-        var gr2 = new THREE.Mesh(roofGeo, obsidianMat); gr2.position.set(104, 580 + 37, PLANE_Z - 4); scene.add(gr2);
-        var lintel = new THREE.Mesh(new THREE.BoxGeometry(240, 96, 16), obsidianMat);
+        // THE TWO COLUMNS (Russell, 2026-11-19 22:41): banded pink and
+        // black, alternating all the way down - the left column starts
+        // PINK, the right column starts BLACK. Mirror opposites.
+        var pinkBandMat = new THREE.MeshStandardMaterial({ color: 0xe39db2, map: quartzTex, roughness: 0.4, emissive: 0x7c2d47, emissiveIntensity: 0.18 });
+        var BANDS = 10, BAND_H = 58;
+        var bandGeo = new THREE.CylinderGeometry(34, 36, BAND_H, 12);
+        for (var cb = 0; cb < BANDS; cb++) {
+          var yC = cb * BAND_H + BAND_H / 2;
+          var leftMat = (cb % 2 === 0) ? pinkBandMat : obsidianMat;
+          var rightMat = (cb % 2 === 0) ? obsidianMat : pinkBandMat;
+          var bl2 = new THREE.Mesh(bandGeo, leftMat); bl2.position.set(-152, yC, PLANE_Z - 4); scene.add(bl2);
+          var br2 = new THREE.Mesh(bandGeo, rightMat); br2.position.set(152, yC, PLANE_Z - 4); scene.add(br2);
+        }
+        var roofGeo = new THREE.ConeGeometry(42, 84, 12);
+        var gr1 = new THREE.Mesh(roofGeo, obsidianMat); gr1.position.set(-152, 580 + 42, PLANE_Z - 4); scene.add(gr1);
+        var gr2 = new THREE.Mesh(roofGeo, obsidianMat); gr2.position.set(152, 580 + 42, PLANE_Z - 4); scene.add(gr2);
+        var lintel = new THREE.Mesh(new THREE.BoxGeometry(340, 96, 16), obsidianMat);
         lintel.position.set(0, 492, PLANE_Z - 3); scene.add(lintel);
         var doorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: obsidianTex, roughness: 0.5, metalness: 0.15 });
-        var doorL = new THREE.Mesh(new THREE.BoxGeometry(84, 452, 6), doorMat); doorL.position.set(-42.5, 226, PLANE_Z - 14); scene.add(doorL);
-        var doorR = new THREE.Mesh(new THREE.BoxGeometry(84, 452, 6), doorMat); doorR.position.set(42.5, 226, PLANE_Z - 14); scene.add(doorR);
+        var doorL = new THREE.Mesh(new THREE.BoxGeometry(124, 452, 6), doorMat); doorL.position.set(-63.5, 226, PLANE_Z - 14); scene.add(doorL);
+        var doorR = new THREE.Mesh(new THREE.BoxGeometry(124, 452, 6), doorMat); doorR.position.set(63.5, 226, PLANE_Z - 14); scene.add(doorR);
         var bandMat = new THREE.MeshStandardMaterial({ color: 0x8a6f3c, roughness: 0.4, metalness: 0.7 });
         for (var bd = 0; bd < 3; bd++) {
-          var band = new THREE.Mesh(new THREE.BoxGeometry(170, 10, 2), bandMat);
+          var band = new THREE.Mesh(new THREE.BoxGeometry(250, 10, 2), bandMat);
           band.position.set(0, 90 + bd * 150, PLANE_Z - 10.4);
           scene.add(band);
         }
         var keystone = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), bladeMat);
-        keystone.scale.set(18, 120, 18); keystone.position.set(0, 600, PLANE_Z + 4); scene.add(keystone);
+        keystone.scale.set(22, 140, 22); keystone.position.set(0, 610, PLANE_Z + 4); scene.add(keystone);
 
         // ============ THE MASSIF - crystal spires + stone towers behind.
         var spireMat = new THREE.MeshStandardMaterial({ color: 0xe39db2, map: quartzTex, roughness: 0.38, emissive: 0x7c2d47, emissiveIntensity: 0.16 });
@@ -1197,9 +1207,72 @@
         }
         scene.add(stoneT); scene.add(stoneR);
 
+        // ============ THE SKY LAYER - the Arrival painting itself,
+        // anchored at the wall's base the way the ChessX boards anchored
+        // their artwork: its ground line sits at ground level behind the
+        // built wall, so its spires and sky continue the built world
+        // upward at the painting's full resolution. The built wall hides
+        // its lower band; the built spires stand in front of it.
+        (function buildSkyLayer() {
+          var parts = [], loaded = 0, N = 3;
+          function trySky() {
+            if (loaded < N) return;
+            var b64 = parts.join('');
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            var url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+            new THREE.TextureLoader().load(url, function (tex) {
+              tex.colorSpace = THREE.SRGBColorSpace;
+              tex.anisotropy = 4;
+              var H = 4490, planeY = H / 2 - 898 + 1.7;
+              tex.wrapS = THREE.ClampToEdgeWrapping;
+              tex.repeat.x = 0.8; tex.offset.x = 0.1;
+              var center = new THREE.Mesh(new THREE.PlaneGeometry(4741, H),
+                new THREE.MeshBasicMaterial({ map: tex, fog: false }));
+              center.position.set(0, planeY, PLANE_Z - 60);
+              scene.add(center);
+              function strip(side, off) {
+                var t = tex.clone();
+                t.needsUpdate = true;
+                t.repeat.x = 0.1; t.offset.x = off;
+                var m = new THREE.Mesh(new THREE.PlaneGeometry(24000, H),
+                  new THREE.MeshBasicMaterial({ map: t, fog: false }));
+                m.position.set(side * 14370, planeY, PLANE_Z - 60);
+                scene.add(m);
+              }
+              strip(-1, 0);
+              strip(1, 0.9);
+            });
+          }
+          for (var k = 0; k < N; k++) {
+            (function (idx) {
+              fetch('av2-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
+                parts[idx] = t; loaded++; trySky();
+              }).catch(function () { /* sky layer unavailable */ });
+            })(k);
+          }
+        })();
+        // Built spires march the whole wall, so the castle stretches to
+        // match the skin on both horizons.
+        var marchMat = spireMat;
+        var NM = 150;
+        var march = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), marchMat, NM);
+        for (var m2 = 0; m2 < NM; m2++) {
+          var mx2 = -23000 + (m2 / (NM - 1)) * 46000 + (Math.random() - 0.5) * 260;
+          if (Math.abs(mx2) < 900) mx2 += 1400;
+          var mh = 500 + Math.random() * 1200;
+          dummy.position.set(mx2, mh / 2 - 40, PLANE_Z - 350 - Math.random() * 1500);
+          dummy.rotation.set(0, Math.random() * 3.14, 0);
+          dummy.scale.set(mh * 0.09, mh, mh * 0.09);
+          dummy.updateMatrix();
+          march.setMatrixAt(m2, dummy.matrix);
+        }
+        scene.add(march);
+
         // ============ THE GUARDIANS - placeholders at the gate, 1/6 its height.
         if (window.__sentinels) {
-          var wpos = [[-128, window.__sentinels[0]], [128, window.__sentinels[1]]];
+          var wpos = [[-218, window.__sentinels[0]], [218, window.__sentinels[1]]];
           for (var w = 0; w < 2; w++) {
             var wx = wpos[w][0], ws = wpos[w][1];
             ws.visible = true;
