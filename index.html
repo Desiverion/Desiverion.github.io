@@ -254,6 +254,7 @@
       var rig = new THREE.Group();
       rig.position.copy(SPAWN);
       rig.add(camera);
+      window.__scoutPos = function () { return { x: Math.round(rig.position.x), z: Math.round(rig.position.z) }; };
       scene.add(rig);
 
       // ---------- Sky: gradient dome with a low warm sun-glow ----------
@@ -406,6 +407,41 @@
         }
       })();
 
+      // The WALL ROAD: a pale track running the wall's whole length, plus
+      // scattered rocks and rose bushes in the band before the wall -
+      // near-field landmarks so walking the wall READS as travel.
+      (function buildWallRoad() {
+        var track = new THREE.Mesh(
+          new THREE.PlaneGeometry(39600, 130),
+          new THREE.MeshStandardMaterial({ color: 0xcbb691, roughness: 1 })
+        );
+        track.rotation.x = -Math.PI / 2;
+        track.position.set(0, 0.1, GATE_FACE_Z + 1050);
+        scene.add(track);
+        var rockGeo = new THREE.SphereGeometry(1, 8, 6);
+        var rockMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+        var scatter = new THREE.InstancedMesh(rockGeo, rockMat, 240);
+        var m = new THREE.Matrix4();
+        var q = new THREE.Quaternion();
+        var e = new THREE.Euler();
+        var col = new THREE.Color();
+        for (var i = 0; i < 240; i++) {
+          var x = Math.random() * 38000 - 19000;
+          var z = GATE_FACE_Z + 250 + Math.random() * 3150;
+          var s = 2 + Math.random() * 11;
+          e.set(0, Math.random() * Math.PI, 0);
+          q.setFromEuler(e);
+          m.compose(new THREE.Vector3(x, groundHeight(x, z) + s * 0.25, z),
+                    q, new THREE.Vector3(s, s * 0.62, s));
+          scatter.setMatrixAt(i, m);
+          if (i % 3 === 0) col.setHex(0xd07f9f);       // rose bloom
+          else if (i % 3 === 1) col.setHex(0x5d6f4c);  // bush green
+          else col.setHex(0x8d8578);                    // country stone
+          scatter.setColorAt(i, col);
+        }
+        scene.add(scatter);
+      })();
+
       // Distant hill silhouettes so the horizon is country, not void.
       (function buildHills() {
         var hillMat = new THREE.MeshStandardMaterial({ color: 0x6d7460, roughness: 1 });
@@ -434,15 +470,91 @@
       castle.scale.setScalar(4);
       scene.add(castle);
 
-      var boneMat = new THREE.MeshStandardMaterial({ color: 0xe9e1cf, roughness: 0.85, metalness: 0 });
-      var obsidianMat = new THREE.MeshStandardMaterial({ color: 0x17151d, roughness: 0.55, metalness: 0.1 });
+      // SKIN v1 (Russell, 2026-11-19): painted canvas surfaces - bone ashlar
+      // with quartz flecks for the wall, crystal facets for the towers, dark
+      // blockwork for the obsidian - so the massing stops reading as flat
+      // cartoon boxes. (The true painting-skin is the Unity build's work.)
+      function makeTex(painter, rx, ry) {
+        var cv = document.createElement('canvas');
+        cv.width = 512; cv.height = 512;
+        painter(cv.getContext('2d'));
+        var t = new THREE.CanvasTexture(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(rx, ry);
+        t.anisotropy = 4;
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+      var boneTex = makeTex(function (g) {
+        g.fillStyle = '#d8cdb4'; g.fillRect(0, 0, 512, 512);
+        for (var r = 0; r < 8; r++) {
+          for (var c = -1; c < 5; c++) {
+            var sh = (Math.random() * 14 - 7) | 0;
+            g.fillStyle = 'rgb(' + (216 + sh) + ',' + (205 + sh) + ',' + (180 + sh) + ')';
+            g.fillRect(c * 128 + (r % 2) * 64, r * 64, 128, 64);
+          }
+        }
+        g.strokeStyle = 'rgba(110,95,70,0.6)'; g.lineWidth = 3;
+        for (var r2 = 0; r2 <= 8; r2++) { g.beginPath(); g.moveTo(0, r2 * 64); g.lineTo(512, r2 * 64); g.stroke(); }
+        for (var r3 = 0; r3 < 8; r3++) {
+          for (var c2 = 0; c2 < 4; c2++) {
+            var jx = c2 * 128 + (r3 % 2) * 64;
+            g.beginPath(); g.moveTo(jx, r3 * 64); g.lineTo(jx, r3 * 64 + 64); g.stroke();
+          }
+        }
+        for (var i = 0; i < 1500; i++) {
+          g.fillStyle = 'rgba(90,75,55,' + (Math.random() * 0.09) + ')';
+          g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        }
+        for (var f = 0; f < 26; f++) {
+          g.fillStyle = 'rgba(196,110,145,0.35)';
+          g.fillRect(Math.random() * 512, Math.random() * 512, 5, 8);
+        }
+      }, 12, 3);
+      var quartzTex = makeTex(function (g) {
+        var grad = g.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0, '#eec2d0'); grad.addColorStop(0.55, '#dda5ba'); grad.addColorStop(1, '#c98ba2');
+        g.fillStyle = grad; g.fillRect(0, 0, 512, 512);
+        for (var i = 0; i < 46; i++) {
+          g.fillStyle = 'rgba(255,240,246,' + (0.08 + Math.random() * 0.17) + ')';
+          var fx = Math.random() * 512, fw = 4 + Math.random() * 15;
+          g.beginPath();
+          g.moveTo(fx, 0); g.lineTo(fx + fw, 0); g.lineTo(fx + fw * 0.4, 512); g.lineTo(fx - fw * 0.6, 512);
+          g.closePath(); g.fill();
+        }
+        g.strokeStyle = 'rgba(150,60,95,0.45)'; g.lineWidth = 2;
+        for (var v = 0; v < 12; v++) {
+          g.beginPath();
+          var vx = Math.random() * 512;
+          g.moveTo(vx, 0);
+          g.bezierCurveTo(vx + 22, 170, vx - 22, 340, vx + 8, 512);
+          g.stroke();
+        }
+      }, 2, 5);
+      var obsidianTex = makeTex(function (g) {
+        g.fillStyle = '#1b1813'; g.fillRect(0, 0, 512, 512);
+        for (var r = 0; r < 4; r++) {
+          for (var c = -1; c < 3; c++) {
+            var sh2 = (Math.random() * 10 - 5) | 0;
+            g.fillStyle = 'rgb(' + (27 + sh2) + ',' + (24 + sh2) + ',' + (19 + sh2) + ')';
+            g.fillRect(c * 256 + (r % 2) * 128, r * 128, 256, 128);
+          }
+        }
+        g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = 4;
+        for (var r4 = 0; r4 <= 4; r4++) { g.beginPath(); g.moveTo(0, r4 * 128); g.lineTo(512, r4 * 128); g.stroke(); }
+        g.strokeStyle = 'rgba(220,200,170,0.13)'; g.lineWidth = 2;
+        for (var r5 = 0; r5 <= 4; r5++) { g.beginPath(); g.moveTo(0, r5 * 128 + 3); g.lineTo(512, r5 * 128 + 3); g.stroke(); }
+      }, 4, 4);
+
+      var boneMat = new THREE.MeshStandardMaterial({ color: 0xf5efe2, map: boneTex, roughness: 0.85, metalness: 0 });
+      var obsidianMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: obsidianTex, roughness: 0.55, metalness: 0.1 });
       var quartzMat = new THREE.MeshStandardMaterial({
-        color: 0xe39db2, roughness: 0.38, metalness: 0,
+        color: 0xe39db2, map: quartzTex, roughness: 0.38, metalness: 0,
         emissive: 0x8e3049, emissiveIntensity: 0.30,
         transparent: true, opacity: 0.97
       });
       var quartzPaleMat = new THREE.MeshStandardMaterial({
-        color: 0xeeb3c3, roughness: 0.42, metalness: 0,
+        color: 0xeeb3c3, map: quartzTex, roughness: 0.42, metalness: 0,
         emissive: 0x8e3049, emissiveIntensity: 0.22,
         transparent: true, opacity: 0.97
       });
@@ -485,13 +597,14 @@
       })();
 
       // --- Bastion towers at intervals down the wall ---
-      [1050, 2400, 3900].forEach(function (bd) {
+      [1050, 2400, 3900].forEach(function (bd, bi) {
         [-1, 1].forEach(function (sx) {
           var bastion = new THREE.Mesh(new THREE.CylinderGeometry(58, 66, 1020, 14), boneMat);
           bastion.position.set(sx * bd, 510, -30);
           castle.add(bastion);
-          var cap = new THREE.Mesh(new THREE.ConeGeometry(70, 130, 14), obsidianMat);
-          cap.position.set(sx * bd, 1020 + 65, -30);
+          var capH = (bi % 2 === 0) ? 130 : 235; // caps alternate: the wall has landmarks
+          var cap = new THREE.Mesh(new THREE.ConeGeometry(70, capH, 14), obsidianMat);
+          cap.position.set(sx * bd, 1020 + capH / 2, -30);
           castle.add(cap);
         });
       });
@@ -706,8 +819,11 @@
       window.addEventListener('keyup', function (e) { keys[e.code] = false; });
 
       function clampRig() {
-        rig.position.z = Math.max(GATE_STOP_Z, Math.min(150, rig.position.z));
-        rig.position.x = Math.max(-1500, Math.min(1500, rig.position.x));
+        // FREE WALK (Russell, 2026-11-19): no invisible fences. The old clamps
+        // (x +/-1,500 m; never closer than the 2,400 m stop line) nailed the
+        // gate to the center of his face and stopped him dead mid-walk.
+        rig.position.z = Math.max(GATE_FACE_Z - 400, Math.min(GATE_FACE_Z + 6000, rig.position.z));
+        rig.position.x = Math.max(-21000, Math.min(21000, rig.position.x));
         rig.position.y = 0;
       }
 
