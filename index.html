@@ -223,7 +223,7 @@
       var EYE_DESKTOP = 1.7;
       var WALK_SPEED = 3.2;        // m/s, on foot (the final approach)
       var SPRINT_SPEED = 150;      // m/s, Shift held / journey cap
-      var GATE_STOP_Z = GATE_FACE_Z + 600; // halt where the gates read framed by the wall (600 m out)
+      var GATE_STOP_Z = GATE_FACE_Z + 2400; // halt where the gates read framed by the wall (x4 build)
 
       // Journey speed: the road carries you. Fast in the open country,
       // easing down as the gates near, a walk for the last stretch.
@@ -427,6 +427,11 @@
       // segments around a REAL opening 472 wide x 314 high.
       // ================================================================
       var castle = new THREE.Group();
+      // Russell's ruling (2026-11-19): FOUR TIMES the size, then judge.
+      // The castle is built in local meters (canon scale) around the gate
+      // face (local z = 0) and the group scales it x4 in the world.
+      castle.position.z = GATE_FACE_Z;
+      castle.scale.setScalar(4);
       scene.add(castle);
 
       var boneMat = new THREE.MeshStandardMaterial({ color: 0xe9e1cf, roughness: 0.85, metalness: 0 });
@@ -444,7 +449,7 @@
       var bannerMat = new THREE.MeshStandardMaterial({ color: 0x7e1c2c, roughness: 0.9, side: THREE.DoubleSide });
 
       // --- Gate wall segments around the opening ---
-      var WALL_CZ = GATE_FACE_Z - 60; // centre z
+      var WALL_CZ = -60; // centre z
       var WALL_H = 629, OPEN_HW = 236, OPEN_H = 314;
       [-1, 1].forEach(function (sx) {
         var seg = new THREE.Mesh(new THREE.BoxGeometry(394, WALL_H, 120), boneMat);
@@ -459,18 +464,47 @@
       cornice.position.set(0, WALL_H + 22, WALL_CZ);
       castle.add(cornice);
 
+      // --- Crenellations: merlons marching along the wall top ---
+      (function buildMerlons() {
+        var merlonGeo = new THREE.BoxGeometry(16, 18, 8);
+        var count = 45;
+        var merlons = new THREE.InstancedMesh(merlonGeo, boneMat, count);
+        var m = new THREE.Matrix4();
+        for (var i = 0; i < count; i++) {
+          m.identity();
+          m.setPosition(-616 + i * 28, 682, 8);
+          merlons.setMatrixAt(i, m);
+        }
+        castle.add(merlons);
+      })();
+
+      // --- Bastion towers flanking the gate at the wall line ---
+      [-1, 1].forEach(function (sx) {
+        var bastion = new THREE.Mesh(new THREE.CylinderGeometry(58, 66, 700, 14), boneMat);
+        bastion.position.set(sx * 430, 350, -30);
+        castle.add(bastion);
+        var cap = new THREE.Mesh(new THREE.ConeGeometry(70, 130, 14), obsidianMat);
+        cap.position.set(sx * 430, 700 + 65, -30);
+        castle.add(cap);
+      });
+
+      // --- A rose-quartz course band across the wall face ---
+      var course = new THREE.Mesh(new THREE.BoxGeometry(1260, 60, 122), quartzPaleMat);
+      course.position.set(0, 500, -60);
+      castle.add(course);
+
       // --- The gates themselves: near-black slabs recessed in the opening ---
       var gate = new THREE.Mesh(new THREE.BoxGeometry(460, 306, 6), obsidianMat);
-      gate.position.set(0, 153, GATE_FACE_Z - 26);
+      gate.position.set(0, 153, -26);
       castle.add(gate);
       // Gate frame: two pillars + lintel beam, obsidian, proud of the face
       [-1, 1].forEach(function (sx) {
         var pillar = new THREE.Mesh(new THREE.BoxGeometry(60, 348, 26), obsidianMat);
-        pillar.position.set(sx * 268, 174, GATE_FACE_Z + 4);
+        pillar.position.set(sx * 268, 174, 4);
         castle.add(pillar);
       });
       var beam = new THREE.Mesh(new THREE.BoxGeometry(596, 42, 26), obsidianMat);
-      beam.position.set(0, 336, GATE_FACE_Z + 4);
+      beam.position.set(0, 336, 4);
       castle.add(beam);
 
       // --- Two black spires standing on the gate wall, tips ~1,159 m ---
@@ -488,13 +522,13 @@
       var banners = [];
       [-1, 1].forEach(function (sx) {
         var banner = new THREE.Mesh(new THREE.PlaneGeometry(130, 314), bannerMat);
-        banner.position.set(sx * 330, 443, GATE_FACE_Z + 1.2);
+        banner.position.set(sx * 330, 443, 1.2);
         castle.add(banner);
         banners.push(banner);
         var rod = new THREE.Mesh(
           new THREE.CylinderGeometry(3, 3, 160, 8), obsidianMat);
         rod.rotation.z = Math.PI / 2;
-        rod.position.set(sx * 330, 606, GATE_FACE_Z + 1.2);
+        rod.position.set(sx * 330, 606, 1.2);
         castle.add(rod);
       });
 
@@ -512,7 +546,7 @@
           if (Math.abs(x) < 262 && y < 345) continue;                // keep the opening clear
           if (Math.abs(Math.abs(x) - 330) < 88 && y > 265) continue; // keep banners clear
           m.identity();
-          m.setPosition(x, y, GATE_FACE_Z + 0.8);
+          m.setPosition(x, y, 0.8);
           roses.setMatrixAt(placed, m);
           col.setHSL(0.95 + Math.random() * 0.04, 0.55, 0.55 + Math.random() * 0.18);
           roses.setColorAt(placed, col);
@@ -525,7 +559,7 @@
       // --- Main rose-quartz mass behind the wall ---
       // Inner curtain wall tying the towers together
       var curtain = new THREE.Mesh(new THREE.BoxGeometry(1130, 500, 100), quartzPaleMat);
-      curtain.position.set(0, 250, GATE_FACE_Z - 900);
+      curtain.position.set(0, 250, -900);
       castle.add(curtain);
 
       function tower(x, z, rBase, rTop, h, coneH, mat) {
@@ -540,17 +574,17 @@
       // Central keep + THE central spire: tip at EXACTLY 4,828 m (3 miles).
       (function buildCentre() {
         var keep = new THREE.Mesh(new THREE.CylinderGeometry(520, 680, 820, 20), quartzPaleMat);
-        keep.position.set(0, 410, GATE_FACE_Z - 1400);
+        keep.position.set(0, 410, -1400);
         castle.add(keep);
-        tower(0, GATE_FACE_Z - 1300, 340, 270, 2900, 1928, quartzMat); // 2,900 + 1,928 = 4,828 tip
+        tower(0, -1300, 340, 270, 2900, 1928, quartzMat); // 2,900 + 1,928 = 4,828 tip
       })();
       // Flanking towers stepping down from the centre
-      tower(-520, GATE_FACE_Z - 1200, 250, 200, 2100, 1280, quartzMat);   // tip 3,380
-      tower(520, GATE_FACE_Z - 1200, 250, 200, 2100, 1280, quartzMat);    // tip 3,380
-      tower(-950, GATE_FACE_Z - 1100, 190, 150, 1500, 865, quartzMat);    // tip 2,365
-      tower(950, GATE_FACE_Z - 1100, 190, 150, 1500, 865, quartzMat);     // tip 2,365
-      tower(-1400, GATE_FACE_Z - 1000, 140, 110, 980, 565, quartzPaleMat); // tip 1,545
-      tower(1400, GATE_FACE_Z - 1000, 140, 110, 980, 565, quartzPaleMat);  // tip 1,545
+      tower(-520, -1200, 250, 200, 2100, 1280, quartzMat);   // tip 3,380
+      tower(520, -1200, 250, 200, 2100, 1280, quartzMat);    // tip 3,380
+      tower(-950, -1100, 190, 150, 1500, 865, quartzMat);    // tip 2,365
+      tower(950, -1100, 190, 150, 1500, 865, quartzMat);     // tip 2,365
+      tower(-1400, -1000, 140, 110, 980, 565, quartzPaleMat); // tip 1,545
+      tower(1400, -1000, 140, 110, 980, 565, quartzPaleMat);  // tip 1,545
 
       // ================================================================
       // CONTROLS
