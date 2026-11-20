@@ -246,7 +246,7 @@
       var scene = new THREE.Scene();
       // Pinkish-grey dawn fog: at first sight the castle is a hazed
       // silhouette in atmosphere; it clears as the traveler closes in.
-      scene.fog = new THREE.Fog(0xd9b3ab, 4000, 48000);
+      scene.fog = new THREE.Fog(0xe9dcc9, 4000, 48000);
 
       var camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 160000);
       camera.position.set(0, EYE_DESKTOP, 0);
@@ -278,9 +278,9 @@
           'uniform vec3 sunDir;',
           'void main() {',
           '  float h = clamp(vDir.y, -0.08, 1.0);',
-          '  vec3 zenith  = vec3(0.44, 0.53, 0.68);',
-          '  vec3 mid     = vec3(0.80, 0.68, 0.68);',
-          '  vec3 horizon = vec3(0.96, 0.76, 0.60);',
+          '  vec3 zenith  = vec3(0.72, 0.76, 0.78);',
+          '  vec3 mid     = vec3(0.88, 0.82, 0.78);',
+          '  vec3 horizon = vec3(0.97, 0.90, 0.82);',
           '  vec3 col = mix(horizon, mid, smoothstep(0.0, 0.22, h));',
           '  col = mix(col, zenith, smoothstep(0.18, 0.75, h));',
           '  float sunAmt = pow(max(dot(normalize(vDir), sunDir), 0.0), 18.0);',
@@ -839,7 +839,7 @@
         // gate to the center of his face and stopped him dead mid-walk.
         if (window.__paintingMode) {
           rig.position.x = Math.max(SPAWN.x - 1500, Math.min(SPAWN.x + 1500, rig.position.x));
-          rig.position.z = Math.max(SPAWN.z - 1274, Math.min(SPAWN.z + 60, rig.position.z));
+          rig.position.z = Math.max(SPAWN.z - 930, Math.min(SPAWN.z + 60, rig.position.z));
           rig.position.y = 0;
           return;
         }
@@ -1022,11 +1022,11 @@
       // ================================================================
       window.__paintingMode = true;
       if (typeof castle !== 'undefined') castle.visible = false;
-      if (window.__sentinels) window.__sentinels.forEach(function (s) { s.visible = false; });
+      var PLANE_Z = SPAWN.z - 950;
       (function buildPainting() {
         var parts = [];
         var loaded = 0;
-        var N = 4;
+        var N = 3;
         function tryBuild() {
           if (loaded < N) return;
           var b64 = parts.join('');
@@ -1037,33 +1037,45 @@
           new THREE.TextureLoader().load(url, function (tex) {
             tex.colorSpace = THREE.SRGBColorSpace;
             tex.anisotropy = 4;
-            // THE ARRIVAL (Russell's ruling, 2026-11-19 22:05): plate A-v1,
-            // THE ROAD STRAIGHT IN - the arrival is one of the final gates.
-            // Flat, at wall scale, stood at the painting's own vantage:
-            // 3,333 m tall, its meadow line at his eye line, the crystal
-            // spires exiting the top, the white wall and the rose meadows
-            // running past vision on both sides and stretched on 3,000 m
-            // each way - stretching in every direction, as it's supposed to.
-            var H = 3333, planeY = H / 2 - 900 + 1.7, planeZ = SPAWN.z - 1294;
+            // THE ARRIVAL, SECOND PASS (Russell's rulings, 2026-11-19 22:17):
+            // the wall stretches 15 MILES - the outer strips run 24,000 m
+            // each way, their ends lost in haze; he should never see an end.
+            // The picture's own sky is baked upward above the spires, so
+            // the top never cuts off against a foreign sky. The vantage
+            // closes to 950 m so the black gate and its ramparts, east and
+            // west, stand enlarged in proportion. The Gate Wardens stand at
+            // the picture's gate, normal size against it. The foreground
+            // is POPULATED: rose bushes, blossom trees, country stone.
+            var H = 4490, planeY = H / 2 - 898 + 1.7;
             tex.wrapS = THREE.ClampToEdgeWrapping;
             tex.repeat.x = 0.8; tex.offset.x = 0.1;
             var center = new THREE.Mesh(new THREE.PlaneGeometry(4741, H),
               new THREE.MeshBasicMaterial({ map: tex }));
-            center.position.set(SPAWN.x, planeY, planeZ);
+            center.position.set(SPAWN.x, planeY, PLANE_Z);
             scene.add(center);
             function strip(side, off) {
               var t = tex.clone();
               t.needsUpdate = true;
               t.repeat.x = 0.1; t.offset.x = off;
-              var m = new THREE.Mesh(new THREE.PlaneGeometry(3000, H),
+              var m = new THREE.Mesh(new THREE.PlaneGeometry(24000, H),
                 new THREE.MeshBasicMaterial({ map: t }));
-              m.position.set(SPAWN.x + side * 3870, planeY, planeZ);
+              m.position.set(SPAWN.x + side * 14370, planeY, PLANE_Z);
               scene.add(m);
             }
             strip(-1, 0);
             strip(1, 0.9);
-            // The meadow apron: A-v1's own foreground - rose-grass, sage,
-            // fallen petals - from his boots to the picture's base.
+            // The Gate Wardens at the picture's gate - a seventh of its
+            // height: normal size to the gate, as he ruled.
+            if (window.__sentinels) {
+              var wpos = [[-260, window.__sentinels[0]], [260, window.__sentinels[1]]];
+              for (var w = 0; w < 2; w++) {
+                var wx = wpos[w][0], ws = wpos[w][1];
+                ws.visible = true;
+                ws.scale.setScalar(1.19);
+                ws.position.set(wx, groundHeight(wx, PLANE_Z + 25) + 0.3, PLANE_Z + 25);
+              }
+            }
+            // The meadow apron, in A-v1's palette.
             var cv = document.createElement('canvas');
             cv.width = 256; cv.height = 256;
             var g = cv.getContext('2d');
@@ -1095,11 +1107,70 @@
               new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
             apron.position.set(SPAWN.x, 0, SPAWN.z - 640);
             scene.add(apron);
+            // POPULATE the foreground: rose bushes with blooms, blossom
+            // trees, country stone - the road kept clear.
+            var dummy = new THREE.Object3D();
+            function scatterXZ() {
+              var x = (Math.random() * 2 - 1) * 1600;
+              if (Math.abs(x) < 16) x = 16 + Math.random() * 30;
+              var z = SPAWN.z - 900 + Math.random() * 940;
+              return [x, z];
+            }
+            var NB = 220;
+            var bushes = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 6),
+              new THREE.MeshStandardMaterial({ color: 0x55663a, roughness: 1 }), NB);
+            var blooms = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 5),
+              new THREE.MeshStandardMaterial({ color: 0xd4709e, roughness: 1 }), NB);
+            for (var b = 0; b < NB; b++) {
+              var bp = scatterXZ(), bs = 1.4 + Math.random() * 2.2;
+              var by = groundHeight(bp[0], bp[1]) + 0.3;
+              dummy.position.set(bp[0], by + bs * 0.55, bp[1]);
+              dummy.scale.set(bs, bs * 0.72, bs);
+              dummy.rotation.set(0, Math.random() * 3.14, 0);
+              dummy.updateMatrix();
+              bushes.setMatrixAt(b, dummy.matrix);
+              dummy.position.set(bp[0], by + bs * 1.05, bp[1]);
+              dummy.scale.set(bs * 0.55, bs * 0.4, bs * 0.55);
+              dummy.updateMatrix();
+              blooms.setMatrixAt(b, dummy.matrix);
+            }
+            scene.add(bushes); scene.add(blooms);
+            var NT = 36;
+            var trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.24, 2.4, 6),
+              new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1 }), NT);
+            var canopies = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6),
+              new THREE.MeshStandardMaterial({ color: 0xcf8fa5, roughness: 1 }), NT);
+            for (var t2 = 0; t2 < NT; t2++) {
+              var tp = scatterXZ(), ts = 0.8 + Math.random() * 0.9;
+              var ty = groundHeight(tp[0], tp[1]) + 0.3;
+              dummy.position.set(tp[0], ty + 1.2 * ts, tp[1]);
+              dummy.scale.set(ts, ts, ts);
+              dummy.rotation.set(0, Math.random() * 3.14, 0);
+              dummy.updateMatrix();
+              trunks.setMatrixAt(t2, dummy.matrix);
+              dummy.position.set(tp[0], ty + (2.4 + 1.1) * ts, tp[1]);
+              dummy.scale.set(2.0 * ts, 1.5 * ts, 2.0 * ts);
+              dummy.updateMatrix();
+              canopies.setMatrixAt(t2, dummy.matrix);
+            }
+            scene.add(trunks); scene.add(canopies);
+            var NR = 60;
+            var rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0),
+              new THREE.MeshStandardMaterial({ color: 0x8b8578, roughness: 1 }), NR);
+            for (var r2 = 0; r2 < NR; r2++) {
+              var rp = scatterXZ(), rs = 0.4 + Math.random() * 1.3;
+              dummy.position.set(rp[0], groundHeight(rp[0], rp[1]) + 0.3 + rs * 0.3, rp[1]);
+              dummy.scale.set(rs, rs * 0.7, rs);
+              dummy.rotation.set(Math.random(), Math.random() * 3.14, Math.random());
+              dummy.updateMatrix();
+              rocks.setMatrixAt(r2, dummy.matrix);
+            }
+            scene.add(rocks);
           });
         }
         for (var k = 0; k < N; k++) {
           (function (idx) {
-            fetch('av1-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
+            fetch('av2-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
               parts[idx] = t; loaded++; tryBuild();
             }).catch(function () { /* painting unavailable */ });
           })(k);
