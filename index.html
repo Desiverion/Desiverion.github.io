@@ -836,6 +836,13 @@
         // FREE WALK (Russell, 2026-11-19): no invisible fences. The old clamps
         // (x +/-1,500 m; never closer than the 2,400 m stop line) nailed the
         // gate to the center of his face and stopped him dead mid-walk.
+        if (window.__paintingMode) {
+          var pdx = rig.position.x - SPAWN.x, pdz = rig.position.z - SPAWN.z;
+          var pdl = Math.sqrt(pdx * pdx + pdz * pdz);
+          if (pdl > 58) { rig.position.x = SPAWN.x + pdx / pdl * 58; rig.position.z = SPAWN.z + pdz / pdl * 58; }
+          rig.position.y = 0;
+          return;
+        }
         rig.position.z = Math.max(GATE_FACE_Z - 400, Math.min(GATE_FACE_Z + 6000, rig.position.z));
         rig.position.x = Math.max(-21000, Math.min(21000, rig.position.x));
         rig.position.y = 0;
@@ -1003,6 +1010,79 @@
         scene.add(right);
       })();
 
+      // ================================================================
+      // STAND BEFORE THE PAINTING (Russell, 2026-11-19): his gate - nothing
+      // proceeds until he stands in front of plate B-v2, THE GATES OPENING,
+      // the picture that made tears stream down his face. The painting is
+      // wrapped as a cyclorama around the spawn: 70 m radius, ~166 degrees,
+      // 135 m tall - the wall runs past vision both ways, the massif exits
+      // the top. His decision surface is the VISUALS; this is the visuals,
+      // at body scale.
+      // ================================================================
+      window.__paintingMode = true;
+      (function buildPainting() {
+        var parts = [];
+        var loaded = 0;
+        var N = 4;
+        function tryBuild() {
+          if (loaded < N) return;
+          var b64 = parts.join('');
+          var bin = atob(b64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          var url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+          new THREE.TextureLoader().load(url, function (tex) {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.repeat.x = -1; // viewed from inside: un-mirror
+            tex.anisotropy = 4;
+            var geo = new THREE.CylinderGeometry(70, 70, 135, 72, 1, true, Math.PI - 1.45, 2.9);
+            var mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide });
+            var wall = new THREE.Mesh(geo, mat);
+            wall.position.set(SPAWN.x, 135 / 2 - 9, SPAWN.z);
+            scene.add(wall);
+            var cv = document.createElement('canvas');
+            cv.width = 256; cv.height = 256;
+            var g = cv.getContext('2d');
+            // Foreground matched to the painting's own foreground: dark
+            // rock, moss, fallen petals - so the seam disappears.
+            g.fillStyle = '#46392c'; g.fillRect(0, 0, 256, 256);
+            var tones = ['#55452f', '#3a2f24', '#5d6242', '#4c5a3a', '#6b5636'];
+            for (var i = 0; i < 5200; i++) {
+              g.fillStyle = tones[(Math.random() * tones.length) | 0];
+              g.globalAlpha = 0.16 + Math.random() * 0.3;
+              g.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 5, 2 + Math.random() * 5);
+            }
+            g.globalAlpha = 1;
+            for (var p = 0; p < 260; p++) {
+              g.fillStyle = 'rgba(216,130,165,0.5)';
+              g.fillRect(Math.random() * 256, Math.random() * 256, 2.4, 1.6);
+            }
+            var gt = new THREE.CanvasTexture(cv);
+            gt.colorSpace = THREE.SRGBColorSpace;
+            var discGeo = new THREE.PlaneGeometry(139, 139, 48, 48);
+            discGeo.rotateX(-Math.PI / 2);
+            var dp = discGeo.attributes.position;
+            for (var vi = 0; vi < dp.count; vi++) {
+              var vx = dp.getX(vi) + SPAWN.x, vz = dp.getZ(vi) + SPAWN.z;
+              dp.setY(vi, groundHeight(vx, vz) + 0.3);
+            }
+            discGeo.computeVertexNormals();
+            var disc = new THREE.Mesh(discGeo,
+              new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
+            disc.position.set(SPAWN.x, 0, SPAWN.z);
+            scene.add(disc);
+          });
+        }
+        for (var k = 0; k < N; k++) {
+          (function (idx) {
+            fetch('bv2-' + (idx + 1) + '.txt').then(function (r) { return r.text(); }).then(function (t) {
+              parts[idx] = t; loaded++; tryBuild();
+            }).catch(function () { /* painting unavailable: greybox remains */ });
+          })(k);
+        }
+      })();
+
       // ---------- Main loop (setAnimationLoop: required for WebXR) ----------
       var clock = new THREE.Clock();
       var distTimer = 0;
@@ -1032,7 +1112,8 @@
         if (distTimer > 0.1) {
           distTimer = 0;
           var d = Math.max(0, rig.position.z - GATE_FACE_Z);
-          if (d >= 160.934) distEl.textContent = (d / 1609.344).toFixed(1) + ' MI';
+          if (window.__paintingMode) distEl.textContent = 'THE GATES OPENING';
+          else if (d >= 160.934) distEl.textContent = (d / 1609.344).toFixed(1) + ' MI';
           else distEl.textContent = Math.round(d * 3.28084) + ' FT';
         }
 
